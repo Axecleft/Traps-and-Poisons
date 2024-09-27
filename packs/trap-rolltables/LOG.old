@@ -1,0 +1,7 @@
+2024/09/27-16:52:41.155 4ab4 Recovering log #4
+2024/09/27-16:52:41.277 4ab4 Delete type=0 #4
+2024/09/27-16:52:41.277 4ab4 Delete type=3 #2
+2024/09/27-17:04:00.108 2d48 Level-0 table #9: started
+2024/09/27-17:04:00.163 2d48 Level-0 table #9: 857 bytes OK
+2024/09/27-17:04:00.204 2d48 Delete type=0 #7
+2024/09/27-17:04:00.258 2d48 Manual compaction at level-0 from '!tables!QuAP04xvOuDndynn' @ 72057594037927935 : 1 .. '!tables.results!QuAP04xvOuDndynn.xCLd4BopsEYrNSJI' @ 0 : 0; will stop at (end)

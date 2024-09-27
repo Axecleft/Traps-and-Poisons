@@ -1,0 +1,73 @@
+{
+  "id": "traps-and-poisons",
+  "title": "Traps and Poisons",
+  "version": "1.0.0",
+  "compatibility": {
+    "minimum": "11",
+    "verified": "11"
+  },
+  "description": "A collection of traps and poisons for use in the Dungeons and Dragons 3.5 SRD system.",
+  "authors": [
+    {
+      "name": "Axecleft",
+      "discord": "axecleft"
+    }
+  ],
+  "packs": [
+    {
+      "name": "traps",
+      "label": "Traps",
+      "path": "packs/traps",
+      "type": "Actor",
+      "system": "D35E",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "poisons",
+      "label": "Poisons",
+      "path": "packs/poisons",
+      "type": "Item",
+      "system": "D35E",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "common-trap-buffs",
+      "label": "Common Trap Buffs",
+      "path": "packs/common-trap-buffs",
+      "type": "Item",
+      "system": "D35E",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "trap-attacks",
+      "label": "Trap Attacks",
+      "path": "packs/trap-attacks",
+      "type": "Item",
+      "system": "D35E",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "trap-rolltables",
+      "label": "Trap Rolltables",
+      "path": "packs/trap-rolltables",
+      "type": "RollTable",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      },
+      "system": "D35E"
+    }
+  ]
+}
