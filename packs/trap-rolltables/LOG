@@ -1,15 +1,3 @@
-2024/09/27-17:04:45.448 1fd8 Recovering log #8
-2024/09/27-17:04:45.569 1fd8 Delete type=0 #8
-2024/09/27-17:04:45.569 1fd8 Delete type=3 #6
-2024/09/27-17:59:20.040 9a4 Level-0 table #13: started
-2024/09/27-17:59:20.156 9a4 Level-0 table #13: 870 bytes OK
-2024/09/27-17:59:20.232 9a4 Delete type=0 #11
-2024/09/27-17:59:20.835 9a4 Manual compaction at level-0 from '!tables!QuAP04xvOuDndynn' @ 72057594037927935 : 1 .. '!tables.results!QuAP04xvOuDndynn.xCLd4BopsEYrNSJI' @ 0 : 0; will stop at (end)
-2024/09/27-17:59:20.997 9a4 Manual compaction at level-1 from '!tables!QuAP04xvOuDndynn' @ 72057594037927935 : 1 .. '!tables.results!QuAP04xvOuDndynn.xCLd4BopsEYrNSJI' @ 0 : 0; will stop at '!tables.results!QuAP04xvOuDndynn.xCLd4BopsEYrNSJI' @ 3 : 0
-2024/09/27-17:59:21.027 9a4 Compacting 1@1 + 1@2 files
-2024/09/27-17:59:21.173 9a4 Generated table #14@1: 2 keys, 777 bytes
-2024/09/27-17:59:21.173 9a4 Compacted 1@1 + 1@2 files => 777 bytes
-2024/09/27-17:59:21.287 9a4 compacted to: files[ 0 0 1 0 0 0 0 ]
-2024/09/27-17:59:21.287 9a4 Delete type=2 #9
-2024/09/27-17:59:21.287 9a4 Delete type=2 #13
-2024/09/27-17:59:21.287 9a4 Manual compaction at level-1 from '!tables.results!QuAP04xvOuDndynn.xCLd4BopsEYrNSJI' @ 3 : 0 .. '!tables.results!QuAP04xvOuDndynn.xCLd4BopsEYrNSJI' @ 0 : 0; will stop at (end)
+2024/11/29-11:37:38.751 1634 Recovering log #229
+2024/11/29-11:37:38.862 1634 Delete type=0 #229
+2024/11/29-11:37:38.862 1634 Delete type=3 #227
