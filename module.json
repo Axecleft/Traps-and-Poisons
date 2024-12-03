@@ -6,7 +6,7 @@
   "download": "https://github.com/Axecleft/Traps-and-Poisons/archive/refs/tags/1.0.1.zip",  
   "compatibility": {
     "minimum": "11",
-    "verified": "11"
+    "verified": "11.315"
   },
   "description": "A collection of traps and poisons for use in the Dungeons and Dragons 3.5 SRD system.",
   "authors": [
