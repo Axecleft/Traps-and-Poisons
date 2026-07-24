@@ -11,7 +11,7 @@ Added consumable poison item support (suggested by @Landryan and @Gilgalad)
 
 Added roll tables for random trap selection
 
-Added roll tables for random potion consumables selection
+Added roll tables for random poison consumables selection
 
 Bug fixes
 
