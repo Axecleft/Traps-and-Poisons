@@ -9,6 +9,10 @@ Added folders to organize the compendiums.
 
 Added consumable poison item support (suggested by @Landryan and @Gilgalad)
 
+Added roll tables for random trap selection
+
+Added roll tables for random potion consumables selection
+
 Bug fixes
 
 Reported by:  Status:   Bug:
@@ -36,3 +40,9 @@ Reported by:  Status:   Bug:
 @Gilgalad     Fixed    Dropping Ceiling CR 9 : no delay 1 round delay
 
 @Gilgalad     Fixed    Incendiary cloud CR 9 : trap timer in items with no apparent interest
+
+@Axecleft     Fixed    Several icons and tokens that had broken links.
+
+@Gilgalad     Fixed    Incendiary cloud CR 9 : trap timer in items with no apparent interest
+
+@Axecleft     Fixed    Several icons and tokens that had broken links.
