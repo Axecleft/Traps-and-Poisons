@@ -1,8 +1,0 @@
-2024/11/29-11:32:46.368 2aa4 Recovering log #225
-2024/11/29-11:32:46.484 2aa4 Delete type=0 #225
-2024/11/29-11:32:46.484 2aa4 Delete type=3 #223
-2024/11/29-11:35:02.759 4c18 Level-0 table #230: started
-2024/11/29-11:35:02.759 4c18 Level-0 table #230: 0 bytes OK
-2024/11/29-11:35:02.852 4c18 Delete type=0 #228
-2024/11/29-11:35:03.142 4c18 Manual compaction at level-0 from '!tables!QuAP04xvOuDndynn' @ 72057594037927935 : 1 .. '!tables.results!QuAP04xvOuDndynn.xCLd4BopsEYrNSJI' @ 0 : 0; will stop at (end)
-2024/11/29-11:35:03.142 4c18 Manual compaction at level-1 from '!tables!QuAP04xvOuDndynn' @ 72057594037927935 : 1 .. '!tables.results!QuAP04xvOuDndynn.xCLd4BopsEYrNSJI' @ 0 : 0; will stop at (end)
