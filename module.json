@@ -1,20 +1,77 @@
 {
   "id": "traps-and-poisons",
-  "title": "Traps and Poisons",
-  "version": "1.0.1",
-  "manifest": "https://github.com/Axecleft/Traps-and-Poisons/releases/download/1.0.1/module.json",
-  "download": "https://github.com/Axecleft/Traps-and-Poisons/archive/refs/tags/1.0.1.zip",  
+  "title": "Axecleft's Traps and Poisons",
+  "version": "1.14.1",
+  "manifest": "https://github.com/Axecleft/Traps-and-Poisons/releases/download/1.14.1/module.json",
+  "download": "https://github.com/Axecleft/Traps-and-Poisons/archive/refs/tags/1.14.1.zip",
   "compatibility": {
-    "minimum": "11",
-    "verified": "11.315"
+    "minimum": "13",
+    "verified": "14"
   },
-  "description": "A collection of traps and poisons for use in the Dungeons and Dragons 3.5 SRD system.",
+  "description": "<p>A collection of traps and poisons for use in the Dungeons and Dragons 3.5 SRD system.</p>",
   "authors": [
     {
       "name": "Axecleft",
-      "discord": "axecleft"
+      "discord": "axecleft",
+      "flags": {}
     }
   ],
+"packFolders": [
+  {
+    "name": "Axecleft's Traps and Poisons",
+    "color": "#3b24f0",
+    "sorting": "m",
+    "packs": [],
+    "folders": [
+      {
+        "name": "Poisons",
+        "color": "#1f08c9",
+        "sorting": "m",
+        "packs": [],
+        "folders": [
+          {
+            "name": "Attacks",
+            "color": "#3f26fb",
+            "sorting": "m",
+            "packs": [
+              "poisons"
+            ],
+            "folders": []
+          },
+          {
+            "name": "Consumables",
+            "color": "#3f26fb",
+            "sorting": "m",
+            "packs": [
+              "poison-consumables"
+            ],
+            "folders": []
+          }
+        ]
+      },
+      {
+        "name": "Support Data",
+        "color": "#1f08c9",
+        "sorting": "m",
+        "packs": [
+          "common-trap-buffs",
+          "trap-attacks",
+          "trap-rolltables"
+        ],
+        "folders": []
+      },
+      {
+        "name": "Traps",
+        "color": "#1f08c9",
+        "sorting": "m",
+        "packs": [
+          "traps"
+        ],
+        "folders": []
+      }
+    ]
+  }
+],
   "packs": [
     {
       "name": "traps",
@@ -25,7 +82,8 @@
       "ownership": {
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
-      }
+      },
+      "flags": {}
     },
     {
       "name": "poisons",
@@ -36,7 +94,8 @@
       "ownership": {
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
-      }
+      },
+      "flags": {}
     },
     {
       "name": "common-trap-buffs",
@@ -47,7 +106,8 @@
       "ownership": {
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
-      }
+      },
+      "flags": {}
     },
     {
       "name": "trap-attacks",
@@ -58,18 +118,33 @@
       "ownership": {
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
-      }
+      },
+      "flags": {}
     },
     {
       "name": "trap-rolltables",
       "label": "Trap Rolltables",
       "path": "packs/trap-rolltables",
       "type": "RollTable",
+      "system": "D35E",
       "ownership": {
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
       },
-      "system": "D35E"
+      "flags": {}
+    },
+    {
+      "name": "poison-consumables",
+      "label": "Poison Consumables",
+      "path": "packs/poison-consumables",
+      "type": "Item",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      },
+      "system": "D35E",
+      "flags": {}
     }
-  ]
+  ],
+  "flags": {}
 }
