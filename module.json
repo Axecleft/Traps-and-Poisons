@@ -1,14 +1,22 @@
 {
   "id": "traps-and-poisons",
-  "title": "Axecleft's Traps and Poisons",
-  "version": "1.14.1",
-  "manifest": "https://github.com/Axecleft/Traps-and-Poisons/releases/download/1.14.1/module.json",
-  "download": "https://github.com/Axecleft/Traps-and-Poisons/archive/refs/tags/1.14.1.zip",
+  "title": "Axecleft's Traps, Poisons, and Diseases",
+  "version": "1.14.5.1",
+  "manifest": "https://github.com/Axecleft/Traps-and-Poisons/releases/download/1.14.5.1/module.json",
+  "download": "https://github.com/Axecleft/Traps-and-Poisons/archive/refs/tags/1.14.5.1.zip",
   "compatibility": {
     "minimum": "13",
     "verified": "14"
   },
-  "description": "<p>A collection of traps and poisons for use in the Dungeons and Dragons 3.5 SRD system.</p>",
+  "esmodules": [
+    "scripts/axecleft-tools.js",
+    "scripts/axecleft-crafting.js",
+    "scripts/trap-generator.js",
+    "scripts/poison-creator.js",
+    "scripts/trap-kits.js",
+    "scripts/trap-craft.js"
+  ],
+  "description": "<p>A collection of traps, poisons, and diseases for use in the Dungeons and Dragons 3.5 SRD system.</p>",
   "authors": [
     {
       "name": "Axecleft",
@@ -16,62 +24,71 @@
       "flags": {}
     }
   ],
-"packFolders": [
-  {
-    "name": "Axecleft's Traps and Poisons",
-    "color": "#3b24f0",
-    "sorting": "m",
-    "packs": [],
-    "folders": [
-      {
-        "name": "Poisons",
-        "color": "#1f08c9",
-        "sorting": "m",
-        "packs": [],
-        "folders": [
-          {
-            "name": "Attacks",
-            "color": "#3f26fb",
-            "sorting": "m",
-            "packs": [
-              "poisons"
-            ],
-            "folders": []
-          },
-          {
-            "name": "Consumables",
-            "color": "#3f26fb",
-            "sorting": "m",
-            "packs": [
-              "poison-consumables"
-            ],
-            "folders": []
-          }
-        ]
-      },
-      {
-        "name": "Support Data",
-        "color": "#1f08c9",
-        "sorting": "m",
-        "packs": [
-          "common-trap-buffs",
-          "trap-attacks",
-          "trap-rolltables"
-        ],
-        "folders": []
-      },
-      {
-        "name": "Traps",
-        "color": "#1f08c9",
-        "sorting": "m",
-        "packs": [
-          "traps"
-        ],
-        "folders": []
-      }
-    ]
-  }
-],
+  "packFolders": [
+    {
+      "name": "Axecleft's Traps, Poisons, and Diseases",
+      "color": "#3b24f0",
+      "sorting": "m",
+      "packs": [],
+      "folders": [
+        {
+          "name": "Diseases",
+          "color": "#1f08c9",
+          "sorting": "m",
+          "packs": [
+            "diseases"
+          ],
+          "folders": []
+        },
+        {
+          "name": "Poisons",
+          "color": "#1f08c9",
+          "sorting": "m",
+          "packs": [],
+          "folders": [
+            {
+              "name": "Attacks",
+              "color": "#3f26fb",
+              "sorting": "m",
+              "packs": [
+                "poisons"
+              ],
+              "folders": []
+            },
+            {
+              "name": "Consumables",
+              "color": "#3f26fb",
+              "sorting": "m",
+              "packs": [
+                "poison-consumables"
+              ],
+              "folders": []
+            }
+          ]
+        },
+        {
+          "name": "Support Data",
+          "color": "#1f08c9",
+          "sorting": "m",
+          "packs": [
+            "common-trap-buffs",
+            "trap-attacks",
+            "trap-rolltables"
+          ],
+          "folders": []
+        },
+        {
+          "name": "Traps",
+          "color": "#1f08c9",
+          "sorting": "m",
+          "packs": [
+            "traps"
+          ],
+          "folders": []
+        }
+      ]
+    }
+  ],
   "packs": [
     {
       "name": "traps",
@@ -143,6 +160,18 @@
         "ASSISTANT": "OWNER"
       },
       "system": "D35E",
+      "flags": {}
+    },
+    {
+      "name": "diseases",
+      "label": "Diseases",
+      "path": "packs/diseases",
+      "type": "Item",
+      "system": "D35E",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      },
       "flags": {}
     }
   ],
