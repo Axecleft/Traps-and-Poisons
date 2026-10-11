@@ -1,14 +1,52 @@
 {
   "id": "traps-and-poisons",
-  "title": "Axecleft's Traps and Poisons",
-  "version": "1.14.1",
-  "manifest": "https://github.com/Axecleft/Traps-and-Poisons/releases/download/1.14.1/module.json",
-  "download": "https://github.com/Axecleft/Traps-and-Poisons/archive/refs/tags/1.14.1.zip",
+  "title": "Axecleft's Traps, Poisons, and Diseases",
+  "version": "1.14.6.1",
+  "manifest": "https://github.com/Axecleft/Traps-and-Poisons/releases/latest/download/module.json",
+  "download": "https://github.com/Axecleft/Traps-and-Poisons/releases/download/1.14.6.1/module.zip",
+  "url": "https://github.com/Axecleft/Traps-and-Poisons",
   "compatibility": {
     "minimum": "13",
     "verified": "14"
   },
-  "description": "<p>A collection of traps and poisons for use in the Dungeons and Dragons 3.5 SRD system.</p>",
+  "esmodules": [
+    "scripts/axecleft-tools.js",
+    "scripts/axecleft-crafting.js",
+    "scripts/trap-generator.js",
+    "scripts/poison-creator.js",
+    "scripts/trap-kits.js",
+    "scripts/trap-craft.js"
+  ],
+  "relationships": {
+    "systems": [
+      {
+        "id": "D35E",
+        "type": "system",
+        "compatibility": {}
+      }
+    ],
+  "recommends": [
+    {
+      "id": "axeclefts-armory",
+      "type": "module",
+      "manifest": "https://github.com/Axecleft/Armory/releases/latest/download/module.json",
+      "reason": "Magic weapons and armor for treasure, merchants and crafting"
+    },
+    {
+      "id": "axeclefts-curios",
+      "type": "module",
+      "manifest": "https://github.com/Axecleft/Curios/releases/latest/download/module.json",
+      "reason": "Potions, scrolls, wands, rings and wondrous items"
+    },
+    {
+      "id": "axecleft-gemstones",
+      "type": "module",
+      "manifest": "https://github.com/Axecleft/Axeclefts-Gemstones/releases/latest/download/module.json",
+      "reason": "Gems, art objects and jewelry for treasure and merchants"
+    }
+  ]
+  },
+  "description": "<p>A collection of traps, poisons, and diseases for use in the Dungeons and Dragons 3.5 SRD system.</p>",
   "authors": [
     {
       "name": "Axecleft",
@@ -16,62 +54,71 @@
       "flags": {}
     }
   ],
-"packFolders": [
-  {
-    "name": "Axecleft's Traps and Poisons",
-    "color": "#3b24f0",
-    "sorting": "m",
-    "packs": [],
-    "folders": [
-      {
-        "name": "Poisons",
-        "color": "#1f08c9",
-        "sorting": "m",
-        "packs": [],
-        "folders": [
-          {
-            "name": "Attacks",
-            "color": "#3f26fb",
-            "sorting": "m",
-            "packs": [
-              "poisons"
-            ],
-            "folders": []
-          },
-          {
-            "name": "Consumables",
-            "color": "#3f26fb",
-            "sorting": "m",
-            "packs": [
-              "poison-consumables"
-            ],
-            "folders": []
-          }
-        ]
-      },
-      {
-        "name": "Support Data",
-        "color": "#1f08c9",
-        "sorting": "m",
-        "packs": [
-          "common-trap-buffs",
-          "trap-attacks",
-          "trap-rolltables"
-        ],
-        "folders": []
-      },
-      {
-        "name": "Traps",
-        "color": "#1f08c9",
-        "sorting": "m",
-        "packs": [
-          "traps"
-        ],
-        "folders": []
-      }
-    ]
-  }
-],
+  "packFolders": [
+    {
+      "name": "Axecleft's Traps, Poisons, and Diseases",
+      "color": "#3b24f0",
+      "sorting": "m",
+      "packs": [],
+      "folders": [
+        {
+          "name": "Diseases",
+          "color": "#1f08c9",
+          "sorting": "m",
+          "packs": [
+            "diseases"
+          ],
+          "folders": []
+        },
+        {
+          "name": "Poisons",
+          "color": "#1f08c9",
+          "sorting": "m",
+          "packs": [],
+          "folders": [
+            {
+              "name": "Attacks",
+              "color": "#3f26fb",
+              "sorting": "m",
+              "packs": [
+                "poisons"
+              ],
+              "folders": []
+            },
+            {
+              "name": "Consumables",
+              "color": "#3f26fb",
+              "sorting": "m",
+              "packs": [
+                "poison-consumables"
+              ],
+              "folders": []
+            }
+          ]
+        },
+        {
+          "name": "Support Data",
+          "color": "#1f08c9",
+          "sorting": "m",
+          "packs": [
+            "common-trap-buffs",
+            "trap-attacks",
+            "trap-rolltables"
+          ],
+          "folders": []
+        },
+        {
+          "name": "Traps",
+          "color": "#1f08c9",
+          "sorting": "m",
+          "packs": [
+            "traps"
+          ],
+          "folders": []
+        }
+      ]
+    }
+  ],
   "packs": [
     {
       "name": "traps",
@@ -143,6 +190,18 @@
         "ASSISTANT": "OWNER"
       },
       "system": "D35E",
+      "flags": {}
+    },
+    {
+      "name": "diseases",
+      "label": "Diseases",
+      "path": "packs/diseases",
+      "type": "Item",
+      "system": "D35E",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      },
       "flags": {}
     }
   ],
