@@ -35,9 +35,34 @@
  * In a world not in English, naming or renaming an item asks for its English name (optional; Skip / Don't ask again),
  * and item sheets get an "English name" header button.
  *
+ * Languages (version 8.2): AxecleftTools.t("English text {name}", { name }) → the text in the world's language, else the English.
+ *   Each Axecleft module ships lang/languages.json (["fr", "es", "pt-BR", "pt-PT"]) and lang/<code>.json files of
+ *   "English text": "translation" pairs; the files of every active Axecleft module are merged. Brazilian Portuguese falls
+ *   back to European Portuguese (and the other way), then English. Text not translated yet stays in English.
+ *   Settings registered by Axecleft modules get their names and hints translated once the files are loaded.
+ *   Hook "axecleftLanguageLoaded" (lang) fires when they are.
+ *
+ * Grammar (version 8.3): names and phrases built from parts.
+ *   AxecleftTools.compose("{kind} of {metamagic} {spell}[ ({level})]", { kind, metamagic: ["Empowered"], spell, level })
+ *     → the pattern in the world's language (patterns are translated in lang/<code>.json like any text), with the
+ *     language's rules from lang/<code>.grammar.json: list words, articles, agreement, elision, contractions, capitals.
+ *   AxecleftTools.compose(pattern, slots, { lang: "en" }) → always English (the English name kept in flags.world.axecleftEn).
+ *   { phrase: true }: a phrase inside a sentence (no capital letter added).
+ *   Pattern syntax:  {slot}  a part (a list is joined with spaces);  {slot:and} / {slot:or}  a list as "A, B and C";
+ *     {slot:a} / {slot:the}  with an article;  {slot:lower}  in lower case;  {slot:head}  the word the others agree with;
+ *     [ … ]  an optional piece, left out when a part inside it is empty.
+ *   A part is text, or a word { text, g: "m" | "f" | "n", pl: true, forms: { m, f, mp, fp }, role: "slot", as: "other text" }
+ *   (the grammar file's "words" add these to plain text by the text: gender, agreeing forms, the part it moves to).
+ *   {~sculpté/sculptée/sculptés/sculptées} in a pattern: a word that agrees with the head (masculine/feminine/plurals).
+ *
+ * Word files (version 8.4): lang/<code>.words.json, "English word": "translation", with a short notation:
+ *   "Épée longue (f)" text and gender · "(f)" gender only (keeps Babele's name) · "acéré/acérée/acérés/acérées" agreeing forms ·
+ *   "de feu (of)" the part of a name it moves to · markers can be combined: "(f, pl)". An object { text, g, pl, forms, role } works too.
+ *   AxecleftTools.word("Flaming", { text: "Feu" }) → the word for compose(): the word file's, else the language file's, else the text given.
+ *
  * If two modules ship different versions of this file, the newest one wins.
  */
-const AXECLEFT_TOOLS_VERSION = 8;
+const AXECLEFT_TOOLS_VERSION = 8.4;
 
 (() => {
   const LAYER = "axecleftTools";
@@ -45,6 +70,248 @@ const AXECLEFT_TOOLS_VERSION = 8;
   if (existing && existing.version >= AXECLEFT_TOOLS_VERSION) return;
 
   const tools = existing?.tools ?? new Map();
+
+  /* ---------- Languages (version 8.2) ---------- */
+  const AXECLEFT_MODULES = ["axeclefts-armory", "axeclefts-curios", "axecleft-gemstones", "traps-and-poisons"];
+  const i18n = existing?.i18n ?? { dict: {}, lang: "en", loaded: null, modules: new Set(AXECLEFT_MODULES) };
+  i18n.grammar ??= null;
+  i18n.words ??= {};
+  const fmt = (s, data) => (data ? String(s).replace(/\{(\w+)\}/g, (m, k) => (data[k] ?? m)) : String(s));
+  /** The text in the world's language (else the English), with {placeholders} filled from data. */
+  const t = (text, data) => fmt(i18n.dict[text] || text, data);
+  const langChain = (lang) => {
+    const l = String(lang ?? "en");
+    if (/^en\b/i.test(l)) return [];
+    const out = [l];
+    const base = l.split("-")[0];
+    if (base === "pt") out.push(l === "pt-BR" ? "pt-PT" : "pt-BR");
+    else if (base !== l) out.push(base);
+    return out;
+  };
+  /* ---------- Grammar (version 8.3) ---------- */
+  /** English rules; a language's lang/<code>.grammar.json overrides any of them. */
+  const GRAMMAR_EN = {
+    and: "and", or: "or", comma: ", ",
+    articles: { a: { m: "a", f: "a", n: "a", mp: "", fp: "", np: "" }, the: { m: "the", f: "the", n: "the", mp: "the", fp: "the", np: "the" } },
+    anRule: true,            // English a/an by the next word's sound
+    defaultGender: "n",
+    elision: null,           // { words: ["de", "le", "la"], before: "aeiouyh…", except: ["hache", …] }
+    contractions: {},        // { "de le": "du", "de les": "des" }
+    capitalize: "none",      // "first": a capital first letter; "none": as written
+    words: {},               // "épée longue": { g: "f" } (word files, phase 5)
+  };
+  const isObj = (v) => v && typeof v === "object" && !Array.isArray(v);
+  const deepMerge = (a, b) => { const out = { ...a }; for (const [k, v] of Object.entries(b ?? {})) { if (k.startsWith("__")) continue; out[k] = isObj(v) && isObj(out[k]) ? deepMerge(out[k], v) : v; } return out; };
+  function mergeGrammar(files) {
+    let g = { ...GRAMMAR_EN, anRule: false, capitalize: "first", defaultGender: "m", words: {} };
+    for (const f of files) g = deepMerge(g, f);
+    g.words = Object.fromEntries(Object.entries(g.words ?? {}).map(([k, v]) => [normWord(k), v]));
+    return g;
+  }
+  const normWord = (s) => String(s ?? "").toLowerCase().replace(/[’]/g, "'").replace(/\s+/g, " ").trim();
+  const emptyPart = (v) => v === null || v === undefined || v === false || v === "" || (Array.isArray(v) && !v.some((x) => !emptyPart(x))) || (isObj(v) && emptyPart(v.text));
+  /** A part as a word: text plus what the grammar file knows about it (gender, forms). */
+  const asWord = (v, G) => {
+    const own = isObj(v) ? v : { text: String(v ?? "") };
+    const info = G.words[normWord(own.text)] ?? {};
+    // A grammar file's entry can also change the text ("as": "de feu" for Babele's "Feu")
+    return { ...info, ...own, text: String(own.as ?? info.as ?? own.text ?? "") };
+  };
+  /** A word file's value: "Épée longue (f)", "(f)", "acéré/acérée/acérés/acérées", "de feu (of)", or { text, g, pl, forms, role }. */
+  const MARKS = { m: ["g", "m"], f: ["g", "f"], n: ["g", "n"], pl: ["pl", true] };
+  function parseWord(v) {
+    if (isObj(v)) return { ...v, text: v.text ?? "" };
+    let s = String(v ?? "").trim();
+    const out = {};
+    const m = s.match(/\s*\(([^()]*)\)\s*$/);
+    if (m) {
+      const toks = m[1].split(/[\s,]+/).filter(Boolean);
+      // Markers only when every word in the brackets is one (gender, pl, or the part of a name: of, adj…)
+      if (toks.length && toks.every((x) => MARKS[x] || /^(of|adj|pre|post|role:\w+)$/.test(x))) {
+        for (const x of toks) { if (MARKS[x]) out[MARKS[x][0]] = MARKS[x][1]; else out.role = x.replace(/^role:/, ""); }
+        s = s.slice(0, m.index).trim();
+      }
+    }
+    if (s.includes("/")) {
+      const f = s.split("/").map((x) => x.trim());
+      out.forms = { m: f[0], f: f[1] ?? f[0], mp: f[2] ?? f[0], fp: f[3] ?? f[2] ?? f[1] ?? f[0] };
+      s = out.g === "f" ? out.forms.f : f[0];
+    }
+    out.text = s;
+    return out;
+  }
+  /**
+   * The word for an English word ("Flaming", "Longsword"), for compose(): in English the English word; otherwise the word file's
+   * entry (its text, else the text given or the language file's translation; gender, forms, role), else the text given, else the English.
+   */
+  function word(en, { text = null, ...extra } = {}) {
+    const english = !i18n.grammar && !Object.keys(i18n.dict).length && !Object.keys(i18n.words ?? {}).length || i18n.lang === "en";
+    if (english) return { ...extra, text: String(en ?? text ?? ""), en };
+    const w = i18n.words?.[normWord(en)] ?? {};
+    return { ...extra, ...w, text: w.text || text || i18n.dict[en] || String(en ?? ""), en };
+  }
+  const genderKey = (w, G) => `${w?.g ?? G.defaultGender}${w?.pl ? "p" : ""}`;
+  /** Parse a pattern into [text | { slot, mods } | { group: [...] }]. */
+  function parsePattern(p) {
+    const out = [], stack = [out];
+    let i = 0, buf = "";
+    const flush = () => { if (buf) { stack.at(-1).push(buf); buf = ""; } };
+    while (i < p.length) {
+      const ch = p[i];
+      if (ch === "{") {
+        const j = p.indexOf("}", i);
+        if (j < 0) { buf += p.slice(i); break; }
+        flush();
+        const inner = p.slice(i + 1, j);
+        if (inner.startsWith("~")) stack.at(-1).push({ agree: inner.slice(1).split("/").map((s) => s.trim()) });
+        else { const [slot, ...mods] = inner.split(":").map((s) => s.trim()); stack.at(-1).push({ slot, mods }); }
+        i = j + 1; continue;
+      }
+      if (ch === "[") { flush(); const g = []; stack.at(-1).push({ group: g }); stack.push(g); i++; continue; }
+      if (ch === "]" && stack.length > 1) { flush(); stack.pop(); i++; continue; }
+      buf += ch; i++;
+    }
+    flush();
+    return out;
+  }
+  const slotsIn = (nodes) => slotNodes(nodes).map((n) => n.slot);
+  const anFor = (text) => (/^[aeiou]/i.test(text) && !/^(uni|eu|one)/i.test(text) ? "an" : "a");
+  /**
+   * A name or phrase from a pattern and its parts, in the world's language (or { lang: "en" }).
+   * slots: { name: text | word | [text | word] }. Returns the text.
+   */
+  function compose(pattern, slots = {}, { lang = null, phrase = false } = {}) {
+    const english = lang === "en" || (!lang && (!i18n.grammar && !Object.keys(i18n.dict).length || i18n.lang === "en"));
+    const G = english ? GRAMMAR_EN : (i18n.grammar ?? { ...GRAMMAR_EN, anRule: false, defaultGender: "m" });
+    const pat = english ? String(pattern) : (i18n.dict[pattern] || String(pattern));
+    const nodes = parsePattern(pat);
+    // Parts as lists of words; a word with a role moves to that part (a French ability that goes after "de", say)
+    const parts = {};
+    for (const [k, v] of Object.entries(slots ?? {})) parts[k] = (Array.isArray(v) ? v : [v]).filter((x) => !emptyPart(x)).map((x) => asWord(x, G));
+    if (!english) {
+      const used = new Set(slotsIn(nodes));
+      for (const k of Object.keys(parts)) {
+        const stay = [];
+        for (const w of parts[k]) { if (w.role && w.role !== k && used.has(w.role)) (parts[w.role] ??= []).push(w); else stay.push(w); }
+        parts[k] = stay;
+      }
+    }
+    const order = slotNodes(nodes);
+    const headSlot = order.find((n) => n.mods.includes("head"))?.slot ?? order.find((n) => parts[n.slot]?.[0]?.g)?.slot ?? null;
+    const head = headSlot ? parts[headSlot]?.[0] ?? null : null;
+    const formOf = (w) => {
+      if (english || !w.forms || !head || w === head) return w.text;
+      const k = genderKey(head, G);
+      return w.forms[k] ?? w.forms[k[0]] ?? w.text;
+    };
+    const join = (list, how) => {
+      if (list.length <= 1 || !how) return list.join(" ");
+      const word = how === "or" ? G.or : G.and;
+      return `${list.slice(0, -1).join(G.comma)} ${word} ${list.at(-1)}`;
+    };
+    const renderSlot = ({ slot, mods }) => {
+      const words = parts[slot] ?? [];
+      if (!words.length) return "";
+      let texts = words.map(formOf);
+      if (mods.includes("lower")) texts = texts.map((s) => s.toLowerCase());
+      let s = join(texts, mods.includes("and") ? "and" : mods.includes("or") ? "or" : null);
+      for (const art of ["a", "the"]) {
+        if (!mods.includes(art)) continue;
+        const w = words[0];
+        const a = english && art === "a" && G.anRule ? anFor(s) : (G.articles?.[art]?.[genderKey(w, G)] ?? G.articles?.[art]?.[w.g ?? G.defaultGender] ?? "");
+        if (a) s = `${a} ${s}`;
+      }
+      return s;
+    };
+    const agreeOf = (forms) => {
+      if (english || !head) return forms[0] ?? "";
+      const k = genderKey(head, G);
+      return forms[{ m: 0, f: 1, mp: 2, fp: 3, n: 0, np: 2 }[k] ?? 0] ?? forms[k.endsWith("p") ? 2 : k === "f" ? 1 : 0] ?? forms[0];
+    };
+    const render = (list) => list.map((n) => {
+      if (typeof n === "string") return n;
+      if (n.agree) return agreeOf(n.agree);
+      if (n.group) return slotsIn(n.group).every((k) => parts[k]?.length) ? render(n.group) : "";
+      return renderSlot(n);
+    }).join("");
+    let out = render(nodes).replace(/\s{2,}/g, " ").replace(/\s+([,.;:)])/g, "$1").replace(/\(\s+/g, "(").trim();
+    if (!english) out = applyRules(out, phrase ? { ...G, capitalize: "none" } : G);
+    return out;
+  }
+  /** The slot nodes in pattern order (the head, when not marked with :head, is the first part with a known gender). */
+  const slotNodes = (nodes) => nodes.flatMap((n) => (typeof n === "string" || n.agree ? [] : n.group ? slotNodes(n.group) : [n]));
+  /** Contractions ("de le" → "du") and elision ("de épée" → "d'épée"), then capitals. */
+  function applyRules(s, G) {
+    const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    for (const [from, to] of Object.entries(G.contractions ?? {})) {
+      s = s.replace(new RegExp(`(^|[\\s('’])${esc(from)}(?=[\\s,.)]|$)`, "giu"), (m, pre) => `${pre}${to}`);
+    }
+    const el = G.elision;
+    if (el?.words?.length) {
+      const before = el.before ?? "aeiouyàâäéèêëîïôöùûüœæh";
+      const except = new Set((el.except ?? []).map(normWord));
+      const re = new RegExp(`(^|[\\s('’])(${el.words.map(esc).join("|")}) (?=([${esc(before)}${esc(before.toUpperCase())}]))`, "giu");
+      s = s.replace(re, (m, pre, w, c, off, all) => {
+        const next = normWord(all.slice(off + m.length).split(/[\s,.;:)]/)[0]);
+        if ([...except].some((x) => next === x || next.startsWith(`${x} `) || next === x.split(" ")[0])) return m;
+        return `${pre}${w.slice(0, -1)}${el.mark ?? "'"}`;
+      });
+    }
+    if (G.capitalize === "first") s = s.charAt(0).toUpperCase() + s.slice(1);
+    return s;
+  }
+
+  async function loadLanguage(lang = globalThis.game?.i18n?.lang) {
+    const chain = langChain(lang);
+    const dict = {}, grammarFiles = [], words = {};
+    for (const id of i18n.modules) {
+      const mod = globalThis.game?.modules?.get(id);
+      if (!mod?.active) continue;
+      let have = [];
+      try { have = chain.length ? await foundry.utils.fetchJsonWithTimeout(`modules/${id}/lang/languages.json`) : []; } catch (e) { continue; } // no translations shipped
+      // The fallback first, so the exact language wins
+      for (const code of [...chain].reverse()) {
+        if (!have.includes(code)) continue;
+        try {
+          const file = await foundry.utils.fetchJsonWithTimeout(`modules/${id}/lang/${code}.json`);
+          for (const [en, tr] of Object.entries(file ?? {})) if (tr && typeof tr === "string" && !en.startsWith("__")) dict[en] = tr;
+        } catch (e) { console.warn(`AxecleftTools | could not read modules/${id}/lang/${code}.json`, e); }
+        // The language's grammar rules (optional file; the modules ship the same one) and its words (each module its own)
+        try { grammarFiles.push(await foundry.utils.fetchJsonWithTimeout(`modules/${id}/lang/${code}.grammar.json`)); } catch (e) { /* none */ }
+        try {
+          const file = await foundry.utils.fetchJsonWithTimeout(`modules/${id}/lang/${code}.words.json`);
+          for (const [en, v] of Object.entries(file ?? {})) { if (en.startsWith("__") || v === "" || v === null) continue; const w = parseWord(v); if (w) words[normWord(en)] = w; }
+        } catch (e) { /* none */ }
+      }
+    }
+    i18n.dict = dict;
+    i18n.grammar = grammarFiles.length ? mergeGrammar(grammarFiles) : null;
+    i18n.words = words;
+    i18n.lang = chain[0] ?? "en";
+    // Setting names and hints of Axecleft modules (registered in English)
+    try {
+      for (const s of game.settings.settings.values()) {
+        if (!i18n.modules.has(s.namespace) && s.namespace !== "world") continue;
+        s._axEn ??= { name: s.name, hint: s.hint, choices: s.choices ? { ...s.choices } : null };
+        if (s._axEn.name) s.name = t(s._axEn.name);
+        if (s._axEn.hint) s.hint = t(s._axEn.hint);
+        if (s._axEn.choices) s.choices = Object.fromEntries(Object.entries(s._axEn.choices).map(([k, v]) => [k, typeof v === "string" ? t(v) : v]));
+      }
+      for (const m of game.settings.menus?.values?.() ?? []) {
+        if (!i18n.modules.has(m.namespace)) continue;
+        m._axEn ??= { name: m.name, label: m.label, hint: m.hint };
+        for (const k of ["name", "label", "hint"]) if (m._axEn[k]) m[k] = t(m._axEn[k]);
+      }
+    } catch (e) { /* settings not ready */ }
+    if (Object.keys(dict).length) console.log(`AxecleftTools | ${Object.keys(dict).length} translated texts loaded (${i18n.lang})`);
+    Hooks.callAll("axecleftLanguageLoaded", i18n.lang);
+    return dict;
+  }
+  if (!existing || (existing.version ?? 0) < 8.2) {
+    // Settings are registered during init; load after them, before anything is shown
+    Hooks.once("setup", () => { i18n.loaded = globalThis.AxecleftTools.loadLanguage(); });
+  }
+
   const esc = (v) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
   /* Searchable lists (version 7; the same code as the Treasure Generator's, for modules that don't ship it) */
@@ -97,8 +364,8 @@ const AXECLEFT_TOOLS_VERSION = 8;
       return `${esc(v.slice(0, i))}<mark>${esc(v.slice(i, i + q.length))}</mark>${esc(v.slice(i + q.length))}`;
     };
     box.innerHTML = shown.map((v) => `<div data-v="${esc(v)}" title="${esc(v)}">${hi(v)}</div>`).join("")
-      + (hits.length > LIMIT ? `<div class="none">${hits.length - LIMIT} more — type to narrow the list</div>` : "")
-      + (!hits.length ? `<div class="none">${all.length ? "No match" : "Nothing to choose from"}</div>` : "");
+      + (hits.length > LIMIT ? `<div class="none">${esc(t("{n} more — type to narrow the list", { n: hits.length - LIMIT }))}</div>` : "")
+      + (!hits.length ? `<div class="none">${esc(all.length ? t("No match") : t("Nothing to choose from"))}</div>` : "");
     box.querySelectorAll("div[data-v]").forEach((el) => el.addEventListener("click", () => comboPick(input, el.dataset.v)));
     // Below the text box, or above it when there's more room there; never past the screen's edge
     const r = input.getBoundingClientRect(), gap = 6, MAX = 320;
@@ -155,8 +422,10 @@ const AXECLEFT_TOOLS_VERSION = 8;
     const b = globalThis.game?.babele;
     if (!b || !packId) return null;
     try {
-      const tc = b.packs?.get?.(packId);
-      if (tc?.translations) return tc.translations;
+      // Babele 2.6+ (game.babele.translatedCompendiumFor / mappedCompendiumFor); older Babele: game.babele.packs
+      const tc = b.translatedCompendiumFor?.(packId) ?? b.mappedCompendiumFor?.(packId) ?? b.packs?.get?.(packId);
+      const tr = tc?.translations;
+      if (tr && Object.keys(tr).length) return tr;
       const t = (Array.isArray(b.translations) ? b.translations : []).find((x) => x.collection === packId);
       return t?.entries ?? null;
     } catch (e) { return null; }
@@ -188,7 +457,7 @@ const AXECLEFT_TOOLS_VERSION = 8;
     const f = x.flags ?? {};
     const own = f.world?.axecleftEn ?? f.axecleft?.en ?? foundry.utils?.getProperty?.(x, "flags.world.axecleftEn");
     if (own) return own;
-    const orig = f.babele?.originalName ?? foundry.utils?.getProperty?.(x, "flags.babele.originalName");
+    const orig = f.babele?.originalName ?? x.originalName ?? foundry.utils?.getProperty?.(x, "flags.babele.originalName");
     if (orig) return orig;
     const tag = tagEn(x);
     if (tag) return tag;
@@ -214,7 +483,7 @@ const AXECLEFT_TOOLS_VERSION = 8;
     }
     return classMap.get(enNorm(name)) ?? name;
   }
-  Hooks.on("babele.ready", () => { babeleMaps.clear(); classMap = null; });
+  for (const h of ["babele.ready", "babele.reinitialized", "babele.dataLoaded"]) Hooks.on(h, () => { babeleMaps.clear(); classMap = null; });
 
   /* English name prompt: worlds not in English */
   const ASK_KEY = "axecleft-tools.askEnglish";
@@ -233,22 +502,22 @@ const AXECLEFT_TOOLS_VERSION = 8;
     const DV = foundry.applications?.api?.DialogV2;
     const current = item.flags?.world?.axecleftEn ?? "";
     const listId = `axecleft-en-${item.id}`;
-    const content = `<p>What is <strong>${esc(item.name)}</strong> called in English? Axecleft's modules (treasure, merchants, crafting) recognize items by their English name. Optional.</p>
-      <div class="form-group"><label>English name</label><input type="text" name="en" list="${listId}" value="${esc(current)}" autofocus><datalist id="${listId}">${knownEnglish().map((n) => `<option value="${esc(n)}">`).join("")}</datalist></div>`;
+    const content = `<p>${t("What is <strong>{name}</strong> called in English? Axecleft's modules (treasure, merchants, crafting) recognize items by their English name. Optional.", { name: esc(item.name) })}</p>
+      <div class="form-group"><label>${esc(t("English name"))}</label><input type="text" name="en" list="${listId}" value="${esc(current)}" autofocus><datalist id="${listId}">${knownEnglish().map((n) => `<option value="${esc(n)}">`).join("")}</datalist></div>`;
     let res = null;
     if (DV) {
-      const buttons = [{ action: "save", label: "Save", icon: "fas fa-check", default: true, callback: (ev, btn) => ({ action: "save", en: btn.form.elements.en?.value }) },
-        { action: "skip", label: "Skip", icon: "fas fa-forward" }];
-      if (!force) buttons.push({ action: "never", label: "Don't ask again", icon: "fas fa-ban" });
-      const p = DV.wait({ window: { title: "English name" }, content, buttons, rejectClose: false, render: (ev, dlg) => { try { api.enhanceDatalists(dlg.element ?? dlg); } catch (e) { /* plain list */ } } });
+      const buttons = [{ action: "save", label: t("Save"), icon: "fas fa-check", default: true, callback: (ev, btn) => ({ action: "save", en: btn.form.elements.en?.value }) },
+        { action: "skip", label: t("Skip"), icon: "fas fa-forward" }];
+      if (!force) buttons.push({ action: "never", label: t("Don't ask again"), icon: "fas fa-ban" });
+      const p = DV.wait({ window: { title: t("English name") }, content, buttons, rejectClose: false, render: (ev, dlg) => { try { api.enhanceDatalists(dlg.element ?? dlg); } catch (e) { /* plain list */ } } });
       res = await p;
     } else {
       // Foundry v11: the classic Dialog
-      res = await new Promise((resolve) => new Dialog({ title: "English name", content: `<form>${content}</form>`,
-        buttons: { save: { label: "Save", callback: (html) => resolve({ action: "save", en: html.find('[name="en"]').val() }) }, skip: { label: "Skip", callback: () => resolve(null) },
-          ...(force ? {} : { never: { label: "Don't ask again", callback: () => resolve("never") } }) }, default: "save", close: () => resolve(null) }).render(true));
+      res = await new Promise((resolve) => new Dialog({ title: t("English name"), content: `<form>${content}</form>`,
+        buttons: { save: { label: t("Save"), callback: (html) => resolve({ action: "save", en: html.find('[name="en"]').val() }) }, skip: { label: t("Skip"), callback: () => resolve(null) },
+          ...(force ? {} : { never: { label: t("Don't ask again"), callback: () => resolve("never") } }) }, default: "save", close: () => resolve(null) }).render(true));
     }
-    if (res === "never" || res?.action === "never") { try { localStorage.setItem(ASK_KEY, "off"); } catch (e) { /* private mode */ } ui.notifications.info("Axecleft: you won't be asked for English names again (the item sheet's English name button still works)."); return; }
+    if (res === "never" || res?.action === "never") { try { localStorage.setItem(ASK_KEY, "off"); } catch (e) { /* private mode */ } ui.notifications.info(t("Axecleft: you won't be asked for English names again (the item sheet's English name button still works).")); return; }
     if (res?.action !== "save") return;
     const en = String(res.en ?? "").trim();
     await item.update(en ? { "flags.world.axecleftEn": en } : { "flags.world.-=axecleftEn": null }, { axecleftEnglish: true });
@@ -272,14 +541,14 @@ const AXECLEFT_TOOLS_VERSION = 8;
     const headerButton = (sheet, buttons) => {
       const item = sheet.document ?? sheet.item ?? sheet.object;
       if (!nonEnglish() || !item || item.documentName !== "Item" || !item.isOwner) return;
-      buttons.unshift({ label: "English name", class: "axecleft-en", icon: "fas fa-language", onclick: () => globalThis.AxecleftTools.askEnglishName(item, { force: true }) });
+      buttons.unshift({ label: t("English name"), class: "axecleft-en", icon: "fas fa-language", onclick: () => globalThis.AxecleftTools.askEnglishName(item, { force: true }) });
     };
     Hooks.on("getItemSheetHeaderButtons", headerButton);
     // Foundry v13+ ApplicationV2 sheets
     Hooks.on("getHeaderControlsItemSheet", (sheet, controls) => {
       const item = sheet.document;
       if (!nonEnglish() || !item?.isOwner) return;
-      controls.unshift({ label: "English name", icon: "fas fa-language", action: "axecleftEnglish", onClick: () => globalThis.AxecleftTools.askEnglishName(item, { force: true }) });
+      controls.unshift({ label: t("English name"), icon: "fas fa-language", action: "axecleftEnglish", onClick: () => globalThis.AxecleftTools.askEnglishName(item, { force: true }) });
     });
   }
 
@@ -289,6 +558,9 @@ const AXECLEFT_TOOLS_VERSION = 8;
     tools,
     enhanceDatalists,
     englishNames, enName, enIndex, classEn, enNorm, askEnglishName,
+    i18n, t, fmt, loadLanguage, langChain, compose, word, parseWord, GRAMMAR_EN,
+    /** Add a module whose lang/ files are read (Axecleft's own modules are known already). */
+    registerLanguageModule(id) { if (id) i18n.modules.add(id); },
     registerEnglishNames(module, names) { englishNames.set(module, [...new Set((names ?? []).filter(Boolean))]); },
 
     /** Add (or replace) a tool in the shared menu. */
@@ -331,30 +603,30 @@ const AXECLEFT_TOOLS_VERSION = 8;
     /** Open the menu of tools. */
     async openMenu() {
       const list = api.available();
-      if (!list.length) return ui.notifications.info("No Axecleft tools are available.");
+      if (!list.length) return ui.notifications.info(t("No Axecleft tools are available."));
       const moduleTitle = (id) => game.modules.get(id)?.title ?? id;
       list.sort((a, b) => moduleTitle(a.module).localeCompare(moduleTitle(b.module)) || a.title.localeCompare(b.title));
       const { DialogV2 } = foundry.applications.api;
       const choice = await DialogV2.wait({
-        window: { title: "Axecleft's Tools", icon: "fas fa-toolbox" },
+        window: { title: t("Axecleft's Tools"), icon: "fas fa-toolbox" },
         classes: ["axecleft-tools-menu"],
         position: { width: 340 },
         content: `<style>
             .axecleft-tools-menu .form-footer { flex-direction: column; gap: 4px; }
             .axecleft-tools-menu .form-footer button { justify-content: flex-start; width: 100%; }
           </style>
-          <p>Choose a tool:</p>`,
+          <p>${esc(t("Choose a tool:"))}</p>`,
         rejectClose: false,
         buttons: list.map((t) => ({
           action: `${t.module}.${t.name}`,
           icon: t.icon,
-          label: `${t.title} — ${moduleTitle(t.module)}`,
+          label: `${api.t(t.title)} — ${moduleTitle(t.module)}`,
         })),
       });
       const tool = choice && tools.get(choice);
       if (tool) {
         try { await tool.onClick(); }
-        catch (err) { console.error(`AxecleftTools | ${choice} failed`, err); ui.notifications.error(`${tool.title} failed: ${err.message}`); }
+        catch (err) { console.error(`AxecleftTools | ${choice} failed`, err); ui.notifications.error(api.t("{tool} failed: {error}", { tool: api.t(tool.title), error: err.message })); }
       }
     },
 
@@ -364,14 +636,14 @@ const AXECLEFT_TOOLS_VERSION = 8;
       if (!list.length) return;
       const moduleTitle = (id) => game.modules.get(id)?.title ?? id;
       list.sort((a, b) => moduleTitle(a.module).localeCompare(moduleTitle(b.module)) || a.title.localeCompare(b.title));
-      const group = { name: "axecleft", title: "Axecleft's Tools", icon: "fas fa-toolbox", layer: "tokens", activeTool: "select", visible: true };
+      const group = { name: "axecleft", title: t("Axecleft's Tools"), icon: "fas fa-toolbox", layer: "tokens", activeTool: "select", visible: true };
       // Foundry needs a selectable "select" tool in every group; it just keeps token selection active.
-      const select = { name: "select", title: "Select Tokens", icon: "fas fa-expand", button: false };
+      const select = { name: "select", title: t("Select Tokens"), icon: "fas fa-expand", button: false };
       const run = (t) => async () => {
         try { await t.onClick(); }
-        catch (err) { console.error(`AxecleftTools | ${t.module}.${t.name} failed`, err); ui.notifications.error(`${t.title} failed: ${err.message}`); }
+        catch (err) { console.error(`AxecleftTools | ${t.module}.${t.name} failed`, err); ui.notifications.error(api.t("{tool} failed: {error}", { tool: api.t(t.title), error: err.message })); }
       };
-      const buttons = list.map((t) => ({ name: `${t.module}--${t.name}`, title: t.hint ? `${t.title}: ${t.hint}` : t.title, icon: t.icon, button: true, visible: true, run: run(t) }));
+      const buttons = list.map((t) => ({ name: `${t.module}--${t.name}`, title: t.hint ? `${api.t(t.title)}: ${api.t(t.hint)}` : api.t(t.title), icon: t.icon, button: true, visible: true, run: run(t) }));
 
       if (Array.isArray(controls)) {
         // Foundry v11/v12: array of groups, array of tools. The group needs its own
@@ -380,7 +652,7 @@ const AXECLEFT_TOOLS_VERSION = 8;
         if (controls.some((c) => c.name === group.name)) return;
         const layer = CONFIG.Canvas?.layers?.[LAYER] ? LAYER : "tokens";
         controls.push({ ...group, layer,
-          tools: [{ ...select, title: "Axecleft's Tools" }, ...buttons.map(({ run, ...b }) => ({ ...b, onClick: run }))] });
+          tools: [{ ...select, title: api.t("Axecleft's Tools") }, ...buttons.map(({ run, ...b }) => ({ ...b, onClick: run }))] });
         return;
       }
       // Foundry v13+: object of groups, object of tools

@@ -7,6 +7,11 @@
  * Pure JavaScript: no Foundry calls, so it can be tested outside Foundry.
  */
 
+/** Text in the world's language (Axecleft's Tools 8.2), else the English. Only for messages and the Customize window's labels: the stat lines stay English (they are parsed). */
+const t = (s, d) => globalThis.AxecleftTools?.t?.(s, d) ?? (d ? String(s).replace(/\{(\w+)\}/g, (m, k) => d[k] ?? m) : String(s));
+/** A choice's label in the world's language (lt: [text, data], else the English label). */
+export const choiceLabel = (o) => (o.lt ? t(o.lt[0], o.lt[1]) : t(o.label));
+
 /* SRD poisons. `cr` is the SRD trap CR modifier; values marked * are the
    module's own (the SRD gives none for ingested poisons or drow poison). */
 export const POISONS = [
@@ -83,15 +88,15 @@ const roundsText = (n) => `${n} round${n === 1 ? "" : "s"}`;
    CR = sum of the choices' CR modifiers. text() writes the SRD-style stat line. */
 const DEPTHS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 const pitDims = {
-  depth: DEPTHS.map((d) => ({ v: d, cr: damageMod(avgDice(`${d / 10}d6`)), label: `${d} ft. deep` })),
-  reflex: PIT_DC_BANDS.map(([lo]) => ({ v: lo, cr: dcMod(lo), label: `DC ${lo} Reflex save` })),
-  multi: [{ v: false, cr: 0, label: "Single target" }, { v: true, cr: 1, label: "Two adjacent squares" }],
+  depth: DEPTHS.map((d) => ({ v: d, cr: damageMod(avgDice(`${d / 10}d6`)), label: `${d} ft. deep`, lt: [/*t*/"{n} ft. deep", { n: d }] })),
+  reflex: PIT_DC_BANDS.map(([lo]) => ({ v: lo, cr: dcMod(lo), label: `DC ${lo} Reflex save`, lt: [/*t*/"DC {n} Reflex save", { n: lo }] })),
+  multi: [{ v: false, cr: 0, label: /*t*/"Single target" }, { v: true, cr: 1, label: /*t*/"Two adjacent squares" }],
 };
 const checkDims = {
-  search: DC_BANDS.map(([lo, hi]) => ({ v: [lo, hi], cr: dcMod(lo), label: `Search DC ${lo}–${hi}` })),
-  disable: DC_BANDS.map(([lo, hi]) => ({ v: [lo, hi], cr: dcMod(lo), label: `Disable Device DC ${lo}–${hi}` })),
+  search: DC_BANDS.map(([lo, hi]) => ({ v: [lo, hi], cr: dcMod(lo), label: `Search DC ${lo}–${hi}`, lt: [/*t*/"Search DC {a}–{b}", { a: lo, b: hi }] })),
+  disable: DC_BANDS.map(([lo, hi]) => ({ v: [lo, hi], cr: dcMod(lo), label: `Disable Device DC ${lo}–${hi}`, lt: [/*t*/"Disable Device DC {a}–{b}", { a: lo, b: hi }] })),
 };
-const agentDim = (list) => list.map((a) => ({ v: a.key, cr: a.cr, label: `${a.key.replace(/\b\w/g, (c) => c.toUpperCase())} (+${a.cr})` }));
+const agentDim = (list) => list.map((a) => ({ v: a.key, cr: a.cr, label: `${a.key.replace(/\b\w/g, (c) => c.toUpperCase())} (+${a.cr})`, lt: ["{name}", { name: a.key.replace(/\b\w/g, (c) => c.toUpperCase()) }] }));
 const pitText = (c, rng) => {
   const parts = [`DC ${c.reflex} Reflex save avoids`, `${c.depth} ft. deep (${c.depth / 10}d6, fall)`];
   if (c.multi) parts.push("multiple targets (first target in each of two adjacent 5 ft. squares)");
@@ -106,60 +111,60 @@ const byVector = (list, ...v) => list.filter((a) => v.includes(a.vector));
 export const RULE_TEMPLATES = [
   {
     n: "Poison Gas Trap",
-    dims: { agent: agentDim(byVector(POISONS, "inhaled")), onset: [1, 2, 3, 4].map((o) => ({ v: o, cr: ONSET[o], label: `Onset delay ${roundsText(o)}` })), ...checkDims },
+    dims: { agent: agentDim(byVector(POISONS, "inhaled")), onset: [1, 2, 3, 4].map((o) => ({ v: o, cr: ONSET[o], label: `Onset delay ${roundsText(o)}`, lt: [o === 1 ? /*t*/"Onset delay {n} round" : /*t*/"Onset delay {n} rounds", { n: o }] })), ...checkDims },
     text: (c, cr, rng) => [...head("Poison Gas Trap", cr, "location trigger", pickOne(RESETS, rng)),
       `poison gas (${poisonText(poisonByKey(c.agent))})`, "multiple targets (all targets in a 10 ft. by 10 ft. room)", "never miss", `onset delay (${roundsText(c.onset)})`, ...checks(c, rng)],
   },
   {
     n: "Spore Cloud Trap",
-    dims: { agent: agentDim(byVector(DISEASES, "inhaled")), onset: [1, 2, 3, 4].map((o) => ({ v: o, cr: ONSET[o], label: `Onset delay ${roundsText(o)}` })), ...checkDims },
+    dims: { agent: agentDim(byVector(DISEASES, "inhaled")), onset: [1, 2, 3, 4].map((o) => ({ v: o, cr: ONSET[o], label: `Onset delay ${roundsText(o)}`, lt: [o === 1 ? /*t*/"Onset delay {n} round" : /*t*/"Onset delay {n} rounds", { n: o }] })), ...checkDims },
     text: (c, cr, rng) => [...head("Spore Cloud Trap", cr, "location trigger", pickOne(RESETS, rng)),
       `disease (${diseaseText(diseaseByKey(c.agent))})`, "multiple targets (all targets in a 10 ft. by 10 ft. room)", "never miss", `onset delay (${roundsText(c.onset)})`, ...checks(c, rng)],
   },
   {
     n: "Gas-Filled Pit Trap",
-    dims: { ...pitDims, agent: agentDim(byVector(POISONS, "inhaled")), onset: [1, 2, 3].map((o) => ({ v: o, cr: ONSET[o], label: `Onset delay ${roundsText(o)}` })), ...checkDims },
+    dims: { ...pitDims, agent: agentDim(byVector(POISONS, "inhaled")), onset: [1, 2, 3].map((o) => ({ v: o, cr: ONSET[o], label: `Onset delay ${roundsText(o)}`, lt: [o === 1 ? /*t*/"Onset delay {n} round" : /*t*/"Onset delay {n} rounds", { n: o }] })), ...checkDims },
     text: (c, cr, rng) => [...head("Gas-Filled Pit Trap", cr, "location trigger", "manual reset"), ...pitText(c, rng),
       `poison gas (${poisonText(poisonByKey(c.agent))})`, "never miss", `onset delay (${roundsText(c.onset)})`, ...checks(c, rng)],
   },
   {
     n: "Poisoned Spiked Pit Trap",
-    dims: { ...pitDims, agent: agentDim(byVector(POISONS, "injury", "contact")), spikes: [{ v: true, cr: 1, label: "Pit spikes (+1)" }], ...checkDims },
+    dims: { ...pitDims, agent: agentDim(byVector(POISONS, "injury", "contact")), spikes: [{ v: true, cr: 1, label: "Pit spikes (+1)", lt: [/*t*/"Pit spikes"] }], ...checkDims },
     text: (c, cr, rng) => [...head("Poisoned Spiked Pit Trap", cr, "location trigger", pickOne(RESETS, rng)), ...pitText(c, rng),
       `pit spikes (Atk +10 melee, 1d4 spikes per target for 1d4+${Math.min(5, c.depth / 10)} plus poison each)`, `poison (${poisonText(poisonByKey(c.agent))})`, ...checks(c, rng)],
   },
   {
     n: "Diseased Spiked Pit Trap",
-    dims: { ...pitDims, agent: agentDim(byVector(DISEASES, "injury")), spikes: [{ v: true, cr: 1, label: "Pit spikes (+1)" }], ...checkDims },
+    dims: { ...pitDims, agent: agentDim(byVector(DISEASES, "injury")), spikes: [{ v: true, cr: 1, label: "Pit spikes (+1)", lt: [/*t*/"Pit spikes"] }], ...checkDims },
     text: (c, cr, rng) => [...head("Diseased Spiked Pit Trap", cr, "location trigger", pickOne(RESETS, rng)), ...pitText(c, rng),
       `pit spikes (Atk +10 melee, 1d4 spikes per target for 1d4+${Math.min(5, c.depth / 10)} plus disease each)`, `disease (${diseaseText(diseaseByKey(c.agent))})`, ...checks(c, rng)],
   },
   {
     n: "Envenomed Needle Trap",
-    dims: { agent: agentDim(byVector(POISONS, "injury", "contact")), atk: [8, 10, 12, 15, 17, 20].map((b) => ({ v: b, cr: atkMod(b), label: `Atk +${b}` })), ...checkDims },
+    dims: { agent: agentDim(byVector(POISONS, "injury", "contact")), atk: [8, 10, 12, 15, 17, 20].map((b) => ({ v: b, cr: atkMod(b), label: `Atk +${b}`, lt: [/*t*/"Atk +{n}", { n: b }] })), ...checkDims },
     text: (c, cr, rng) => [...head("Envenomed Needle Trap", cr, "touch trigger", "manual reset"),
       `Atk +${c.atk} melee (1 plus poison, needle)`, `poison (${poisonText(poisonByKey(c.agent))})`, ...checks(c, rng)],
   },
   {
     n: "Diseased Needle Trap",
-    dims: { agent: agentDim(byVector(DISEASES, "injury")), atk: [8, 10, 12, 15, 17, 20].map((b) => ({ v: b, cr: atkMod(b), label: `Atk +${b}` })), ...checkDims },
+    dims: { agent: agentDim(byVector(DISEASES, "injury")), atk: [8, 10, 12, 15, 17, 20].map((b) => ({ v: b, cr: atkMod(b), label: `Atk +${b}`, lt: [/*t*/"Atk +{n}", { n: b }] })), ...checkDims },
     text: (c, cr, rng) => [...head("Diseased Needle Trap", cr, "touch trigger", "manual reset"),
       `Atk +${c.atk} melee (1 plus disease, needle)`, `disease (${diseaseText(diseaseByKey(c.agent))})`, ...checks(c, rng)],
   },
   {
     n: "Envenomed Dart Trap",
-    dims: { agent: agentDim(byVector(POISONS, "injury", "contact")), atk: [8, 10, 12, 15, 18].map((b) => ({ v: b, cr: atkMod(b), label: `Atk +${b}` })),
-      bonus: [0, 1, 2, 4].map((k) => ({ v: k, cr: damageMod(2.5 + k), label: `Damage 1d4${k ? "+" + k : ""}` })),
-      multi: [{ v: false, cr: 0, label: "Single target" }, { v: true, cr: 1, label: "1 dart per target in a 10 ft. by 10 ft. area" }], ...checkDims },
+    dims: { agent: agentDim(byVector(POISONS, "injury", "contact")), atk: [8, 10, 12, 15, 18].map((b) => ({ v: b, cr: atkMod(b), label: `Atk +${b}`, lt: [/*t*/"Atk +{n}", { n: b }] })),
+      bonus: [0, 1, 2, 4].map((k) => ({ v: k, cr: damageMod(2.5 + k), label: `Damage 1d4${k ? "+" + k : ""}`, lt: [k ? /*t*/"Damage 1d4+{k}" : /*t*/"Damage 1d4", { k }] })),
+      multi: [{ v: false, cr: 0, label: /*t*/"Single target" }, { v: true, cr: 1, label: /*t*/"1 dart per target in a 10 ft. by 10 ft. area" }], ...checkDims },
     text: (c, cr, rng) => [...head("Envenomed Dart Trap", cr, "location trigger", "manual reset"),
       `Atk +${c.atk} ranged (1d4${c.bonus ? "+" + c.bonus : ""} plus poison, dart)`, `poison (${poisonText(poisonByKey(c.agent))})`,
       ...(c.multi ? ["multiple targets (1 dart per target in a 10 ft. by 10 ft. area)"] : []), ...checks(c, rng)],
   },
   {
     n: "Diseased Dart Trap",
-    dims: { agent: agentDim(byVector(DISEASES, "injury")), atk: [8, 10, 12, 15, 18].map((b) => ({ v: b, cr: atkMod(b), label: `Atk +${b}` })),
-      bonus: [0, 1, 2, 4].map((k) => ({ v: k, cr: damageMod(2.5 + k), label: `Damage 1d4${k ? "+" + k : ""}` })),
-      multi: [{ v: false, cr: 0, label: "Single target" }, { v: true, cr: 1, label: "1 dart per target in a 10 ft. by 10 ft. area" }], ...checkDims },
+    dims: { agent: agentDim(byVector(DISEASES, "injury")), atk: [8, 10, 12, 15, 18].map((b) => ({ v: b, cr: atkMod(b), label: `Atk +${b}`, lt: [/*t*/"Atk +{n}", { n: b }] })),
+      bonus: [0, 1, 2, 4].map((k) => ({ v: k, cr: damageMod(2.5 + k), label: `Damage 1d4${k ? "+" + k : ""}`, lt: [k ? /*t*/"Damage 1d4+{k}" : /*t*/"Damage 1d4", { k }] })),
+      multi: [{ v: false, cr: 0, label: /*t*/"Single target" }, { v: true, cr: 1, label: /*t*/"1 dart per target in a 10 ft. by 10 ft. area" }], ...checkDims },
     text: (c, cr, rng) => [...head("Diseased Dart Trap", cr, "location trigger", "manual reset"),
       `Atk +${c.atk} ranged (1d4${c.bonus ? "+" + c.bonus : ""} plus disease, dart)`, `disease (${diseaseText(diseaseByKey(c.agent))})`,
       ...(c.multi ? ["multiple targets (1 dart per target in a 10 ft. by 10 ft. area)"] : []), ...checks(c, rng)],
@@ -189,7 +194,7 @@ export const RULE_TEMPLATES = [
     // SRD Water-Filled Room (CR 4 or CR 7 version) with an ingested poison or disease in the water.
     n: "Tainted Water-Filled Room",
     base: { 4: "Water-Filled Room@4", 7: "Water-Filled Room@7" },
-    dims: { room: [{ v: 4, cr: 4, label: "Water-Filled Room (SRD CR 4)" }, { v: 7, cr: 7, label: "Water-Filled Room (SRD CR 7)" }],
+    dims: { room: [{ v: 4, cr: 4, label: "Water-Filled Room (SRD CR 4)", lt: [/*t*/"Water-Filled Room (SRD CR {n})", { n: 4 }] }, { v: 7, cr: 7, label: "Water-Filled Room (SRD CR 7)", lt: [/*t*/"Water-Filled Room (SRD CR {n})", { n: 7 }] }],
       agent: [...agentDim(byVector(POISONS, "ingested")), ...agentDim(byVector(DISEASES, "ingested"))] },
   },
 ];
@@ -225,7 +230,7 @@ export function rollRuleTrap(T, cr, { rng = Math.random, custom = {}, srdText = 
     const opt = T.dims[k].find((o) => String(Array.isArray(o.v) ? o.v[0] : o.v) === String(v));
     if (opt) pool = pool.filter((c) => same(c.pick[k], opt.v));
   }
-  if (!pool.length) throw new Error(`No ${T.n} matches those choices`);
+  if (!pool.length) throw new Error(t("No {trap} matches those choices", { trap: T.n }));
   const best = Math.min(...pool.map((c) => Math.abs(c.cr - cr)));
   const near = pool.filter((c) => Math.abs(c.cr - cr) === best);
   const choice = near[Math.floor(rng() * near.length)];

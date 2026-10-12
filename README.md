@@ -3,6 +3,40 @@ A collection of Traps, Poisons, and Diseases from the Dungeons and Dragons 3.5 S
 
 Changelog:
 
+v1.14.6.8:
+
+- French draft: lang/fr.json (buttons, menus, hints, messages and name patterns) are filled in, and languages.json now lists fr, so worlds set to French show this module in French. A first draft for Gigalad to correct; English worlds are unchanged.
+
+v1.14.6.7:
+
+- Axecleft's Tools 8.4: word files. Each module's lang folder has words.template.json, every English word that goes into names (abilities, materials, base items, gems, art objects, item kinds, shop-name words); a translator copies it to <code>.words.json and writes each word with a short notation: "Épée longue (f)" (text and gender), "(f)" (gender only, keeping Babele's name), "acéré/acérée/acérés/acérées" (forms that agree with the noun), "de feu (of)" (a word that moves after the noun). Patterns can also hold agreeing words: {~sculpté/sculptée}. lang/README.md explains it.
+- Traps has no words of its own yet (trap kit names use the trap's name).
+- English names are unchanged.
+
+v1.14.6.6:
+
+- Axecleft's Tools 8.3: names built from parts ("+1 Flaming Longsword of Speed", "Scroll of Fireball", "Gold Ring set with Ruby") follow the language's grammar: the name patterns are translated in lang/<code>.json like other texts (word order), and a new grammar file per language (lang/<code>.grammar.json) sets the word for "and", articles, agreement ("acérée" with "Épée longue"), elision (de → d'), contractions (de le → du) and capital letters. Drafts for French, Spanish and Portuguese are included (used once the language is listed in languages.json); lang/README.md explains patterns and grammar files.
+- Trap kit names ("Trap Kit: Wall Blade Trap (CR 1)") go through the grammar and keep their English name.
+- English names are unchanged.
+
+v1.14.6.5:
+
+- The module's own windows are translatable: the Random Trap Generator and its Customize window, the Poison & Disease Creator, trap kits (request and trap-triggered cards, My Traps / Placed Traps, notices and settings) and the Trap kits crafting tab with its price notes. lang/template.json now lists 496 texts.
+- Kept in English on purpose: generated trap stat lines and the poisons, diseases and trap actors the tools make (their text is read back), and the effect words typed in the Poison & Disease Creator (1d6 Con, unconsciousness 1 minute).
+
+v1.14.6.4:
+
+- Axecleft's Tools 8.2: a language loader for Axecleft's modules. Each module has a lang folder (template.json to translate, one file per language, e.g. fr.json); texts not translated yet stay in English, Brazilian and European Portuguese fall back on each other, and setting names are translated too.
+- Ships Crafting 1.9: its window, request cards and messages are translatable. The Traps windows follow next.
+
+v1.14.6.3:
+
+- Ships Axecleft's Crafting 1.8: spell requirements in the world's language.
+
+v1.14.6.2:
+
+- Axecleft's Tools 8.1: works with Babele 2.9 (Foundry 13/14), which keeps its translations in a new place; with it, translated compendium items are found by their English names again.
+
 v1.14.6.1
 
 - Added module update support

@@ -12,16 +12,17 @@
  *   game.modules.get("traps-and-poisons").api.openPoisonCreator();
  */
 
-import { enIndex, enName } from "./trap-pricing.js";
+import { enIndex, enName, t } from "./trap-pricing.js";
+// The window is in the world's language; the items it makes stay English for now (their text and action names are read back)
 const MOD = "traps-and-poisons";
 const CUSTOM_PACK_NAME = "axecleft-custom-poisons";
 const CUSTOM_PACK_LABEL = "Custom Poisons & Diseases";
 const CUSTOM_PACK = `world.${CUSTOM_PACK_NAME}`;
 const WORLD_FOLDER = "Custom Poisons & Diseases";
 
-export const DELIVERY = ["Contact", "Ingested", "Inhaled", "Injury"];
+export const DELIVERY = [/*t*/"Contact", /*t*/"Ingested", /*t*/"Inhaled", /*t*/"Injury"];
 const ABILITIES = { str: "Str", dex: "Dex", con: "Con", int: "Int", wis: "Wis", cha: "Cha" };
-const SAVES = { fortitude: "Fortitude", reflex: "Reflex", will: "Will" };
+const SAVES = { fortitude: /*t*/"Fortitude", reflex: /*t*/"Reflex", will: /*t*/"Will" };
 const ICON_POISON = "systems/D35E/icons/special-abilities/poison.png";
 const ICON_DISEASE = "icons/svg/biohazard.svg";
 const IMG_INITIAL = "systems/D35E/icons/special-abilities/poison-initial.png";
@@ -136,18 +137,18 @@ export function partsToAction(parts) {
 
 /** Plain-English preview of what parts will do in play. */
 export function partsPreview(parts) {
-  if (!parts.length) return ["No effect"];
+  if (!parts.length) return [t("No effect")];
   return parts.map((p) => {
-    if (p.kind === "ability") return `Ability damage: ${p.amount} ${ABILITIES[p.ability]}`;
-    if (p.kind === "drain") return `Ability drain (permanent): ${p.amount} ${ABILITIES[p.ability]}`;
-    if (p.kind === "hp") return `Hit point damage: ${p.amount}`;
+    if (p.kind === "ability") return t("Ability damage: {amount} {ability}", { amount: p.amount, ability: ABILITIES[p.ability] });
+    if (p.kind === "drain") return t("Ability drain (permanent): {amount} {ability}", { amount: p.amount, ability: ABILITIES[p.ability] });
+    if (p.kind === "hp") return t("Hit point damage: {amount}", { amount: p.amount });
     if (p.kind === "condition") {
       const c = CONDITIONS.find((x) => x.label === p.key);
-      const how = c.buff ? `"${c.buff[0]}" buff` : `condition${c.cond.length > 1 ? "s" : ""} ${c.cond.join(", ")}`;
+      const how = c.buff ? t("\"{buff}\" buff", { buff: c.buff[0] }) : t(c.cond.length > 1 ? "conditions {list}" : "condition {list}", { list: c.cond.join(", ") });
       const r = c.buff && durationRounds(p.duration);
-      return `${c.word}: ${how}${p.duration ? `, ${p.duration}${r ? ` (${r} rounds)` : " (shown in chat)"}` : ""}`;
+      return `${c.word}: ${how}${p.duration ? `, ${p.duration}${r ? t(" ({n} rounds)", { n: r }) : t(" (shown in chat)")}` : ""}`;
     }
-    return `Chat message: "${p.text}"`;
+    return t("Chat message: \"{text}\"", { text: p.text });
   });
 }
 
@@ -254,11 +255,11 @@ export function itemToForm(item, { folderName = null, consumable = null } = {}) 
 /** Problems with the form, or [] if it can be created. */
 export function validateForm(f) {
   const errs = [];
-  if (!safeName(f.name)) errs.push("Give it a name.");
-  if (!(Number(f.dc) > 0)) errs.push("The save DC must be a number above 0.");
-  if (f.kind === "poison" && !parseEffectText(f.initial).length && !parseEffectText(f.secondary).length) errs.push("A poison needs an initial or secondary effect.");
-  if (f.kind === "disease" && !parseEffectText(f.secondary).length) errs.push("A disease needs its damage.");
-  if (f.kind === "disease" && !String(f.incubation ?? "").trim()) errs.push("A disease needs an incubation period.");
+  if (!safeName(f.name)) errs.push(t("Give it a name."));
+  if (!(Number(f.dc) > 0)) errs.push(t("The save DC must be a number above 0."));
+  if (f.kind === "poison" && !parseEffectText(f.initial).length && !parseEffectText(f.secondary).length) errs.push(t("A poison needs an initial or secondary effect."));
+  if (f.kind === "disease" && !parseEffectText(f.secondary).length) errs.push(t("A disease needs its damage."));
+  if (f.kind === "disease" && !String(f.incubation ?? "").trim()) errs.push(t("A disease needs an incubation period."));
   return errs;
 }
 
@@ -364,7 +365,7 @@ async function customPack({ create = true } = {}) {
   let pack = game.packs.get(CUSTOM_PACK);
   if (!pack && create) {
     pack = await CC().createCompendium({ label: CUSTOM_PACK_LABEL, name: CUSTOM_PACK_NAME, type: "Item" });
-    ui.notifications.info(`Created the world compendium "${CUSTOM_PACK_LABEL}" for your poisons and diseases.`);
+    ui.notifications.info(t("Created the world compendium \"{name}\" for your poisons and diseases.", { name: CUSTOM_PACK_LABEL }));
   }
   return pack ?? null;
 }
@@ -384,14 +385,14 @@ async function worldFolder() {
 /** Template choices: the module's poisons and diseases, plus the GM's custom ones. */
 async function templateIndex() {
   const groups = [];
-  for (const [label, id, kind] of [["Your custom poisons & diseases", CUSTOM_PACK, null], ["Module poisons", `${MOD}.poisons`, "poison"], ["Module diseases", `${MOD}.diseases`, "disease"]]) {
+  for (const [label, id, kind] of [[/*t*/"Your custom poisons & diseases", CUSTOM_PACK, null], [/*t*/"Module poisons", `${MOD}.poisons`, "poison"], [/*t*/"Module diseases", `${MOD}.diseases`, "disease"]]) {
     const pack = game.packs.get(id);
     if (!pack) continue;
     const idx = await enIndex(pack, { fields: ["type"] }); // English names (Babele: "Arsenic" is "Poison, Arsenic")
     const list = idx.filter((e) => e.type === "attack" && /^(poison|disease),/i.test(e.name))
       .map((e) => ({ uuid: `Compendium.${id}.Item.${e._id}`, name: e.display ?? e.name, kind: kind ?? (/^disease/i.test(e.name) ? "disease" : "poison") }));
     const seen = new Set();
-    groups.push({ label, items: list.filter((e) => !seen.has(e.name) && seen.add(e.name)).sort((a, b) => a.name.localeCompare(b.name)) });
+    groups.push({ label: t(label), items: list.filter((e) => !seen.has(e.name) && seen.add(e.name)).sort((a, b) => a.name.localeCompare(b.name)) });
   }
   return groups.filter((g) => g.items.length);
 }
@@ -420,14 +421,14 @@ export async function loadTemplate(uuid) {
 async function baseItem(packId, name) {
   const pack = game.packs.get(packId);
   const e = pack && (await enIndex(pack)).find((x) => x.name === name);
-  if (!e) throw new Error(`"${name}" was not found in ${packId}`);
+  if (!e) throw new Error(t("\"{name}\" was not found in {pack}", { name, pack: packId }));
   return (await pack.getDocument(e._id)).toObject();
 }
 
 /** Create (or update) the attack and consumable. Returns the two documents. */
 export async function createPoison(f, { templateUuid = null, copyToWorld = true } = {}) {
   const pack = await customPack();
-  if (pack.locked) throw new Error(`The "${CUSTOM_PACK_LABEL}" compendium is locked. Unlock it and try again.`);
+  if (pack.locked) throw new Error(t("The \"{name}\" compendium is locked. Unlock it and try again.", { name: CUSTOM_PACK_LABEL }));
   const isDisease = f.kind === "disease";
   const tmpl = templateUuid ? (await fromUuid(templateUuid))?.toObject() : null;
   const attackBase = tmpl && /^(poison|disease),/i.test(tmpl.name) && /^disease/i.test(tmpl.name) === isDisease
@@ -442,8 +443,8 @@ export async function createPoison(f, { templateUuid = null, copyToWorld = true 
   const clash = [attack, consumable].filter(existing);
   if (clash.length) {
     const ok = await foundry.applications.api.DialogV2.confirm({
-      window: { title: "Replace existing?" },
-      content: `<p>${clash.map((d) => `<strong>${escHtml(d.name)}</strong>`).join(" and ")} already exist${clash.length === 1 ? "s" : ""} in ${CUSTOM_PACK_LABEL}. Replace ${clash.length === 1 ? "it" : "them"}?</p>`,
+      window: { title: t("Replace existing?") },
+      content: `<p>${escHtml(t(clash.length === 1 ? "{items} already exists in {pack}. Replace it?" : "{items} already exist in {pack}. Replace them?", { items: "\u0001", pack: CUSTOM_PACK_LABEL })).replace("\u0001", clash.map((d) => `<strong>${escHtml(d.name)}</strong>`).join(escHtml(t(" and "))))}</p>`,
     });
     if (!ok) return null;
   }
@@ -462,10 +463,10 @@ export async function createPoison(f, { templateUuid = null, copyToWorld = true 
     }
   }
   await ChatMessage.create({
-    content: `<h3>${isDisease ? "Disease" : "Poison"} created</h3><p>@UUID[${a.uuid}]{${escHtml(a.name)}}<br>@UUID[${c.uuid}]{${escHtml(c.name)}} (consumable)</p>`
-      + `<p><small>Saved in the ${CUSTOM_PACK_LABEL} compendium${copyToWorld ? ` and the "${WORLD_FOLDER}" Items folder` : ""}.</small></p>`,
+    content: `<h3>${escHtml(t(isDisease ? "Disease created" : "Poison created"))}</h3><p>@UUID[${a.uuid}]{${escHtml(a.name)}}<br>@UUID[${c.uuid}]{${escHtml(c.name)}} ${escHtml(t("(consumable)"))}</p>`
+      + `<p><small>${escHtml(copyToWorld ? t("Saved in the {pack} compendium and the \"{folder}\" Items folder.", { pack: CUSTOM_PACK_LABEL, folder: WORLD_FOLDER }) : t("Saved in the {pack} compendium.", { pack: CUSTOM_PACK_LABEL }))}</small></p>`,
     whisper: ChatMessage.getWhisperRecipients("GM").map((u) => u.id),
-    speaker: { alias: "Poison & Disease Creator" },
+    speaker: { alias: t("Poison & Disease Creator") },
   });
   return { attack: a, consumable: c };
 }
@@ -476,7 +477,8 @@ export async function createPoison(f, { templateUuid = null, copyToWorld = true 
 
 function formHtml(f, groups, templateUuid) {
   const sel = (name, opts, value) => `<select name="${name}">${opts.map(([v, l]) => `<option value="${escHtml(v)}"${String(v) === String(value) ? " selected" : ""}>${escHtml(l)}</option>`).join("")}</select>`;
-  const tmplOpts = `<option value="">— None (start blank) —</option>` + groups.map((g) =>
+  const H = (s, d) => escHtml(t(s, d));
+  const tmplOpts = `<option value="">${H("— None (start blank) —")}</option>` + groups.map((g) =>
     `<optgroup label="${escHtml(g.label)}">${g.items.map((i) => `<option value="${i.uuid}" data-kind="${i.kind}"${i.uuid === templateUuid ? " selected" : ""}>${escHtml(i.name)}</option>`).join("")}</optgroup>`).join("");
   return `<style>
       .tp-pc .form-group label { flex: 0 0 9.5em; }
@@ -487,30 +489,30 @@ function formHtml(f, groups, templateUuid) {
       .tp-pc .tp-pc-extras label { flex: 1; }
     </style>
     <div class="tp-pc" data-kind="${f.kind}">
-    <p class="hint">Start from an existing poison or disease to fill in the form, then change only what you need.</p>
-    <div class="form-group"><label>Template</label><select name="template">${tmplOpts}</select></div>
+    <p class="hint">${H("Start from an existing poison or disease to fill in the form, then change only what you need.")}</p>
+    <div class="form-group"><label>${H("Template")}</label><select name="template">${tmplOpts}</select></div>
     <hr>
-    <div class="form-group"><label>Type</label>${sel("kind", [["poison", "Poison"], ["disease", "Disease"]], f.kind)}</div>
-    <div class="form-group"><label>Name</label><input type="text" name="name" value="${escHtml(f.name)}" placeholder="e.g. Swamp Adder Venom"></div>
-    <div class="form-group"><label>Delivery</label>${sel("delivery", DELIVERY.map((d) => [d, d]), f.delivery)}</div>
-    <div class="form-group"><label>Saving throw</label>${sel("saveType", Object.entries(SAVES), f.saveType)}<label style="flex:0 0 2.5em;text-align:right">DC</label><input type="number" name="dc" value="${escHtml(f.dc)}" min="1" step="1"></div>
-    <div class="form-group" data-for="poison"${f.kind === "poison" ? "" : ' style="display:none"'}><label>Initial damage</label><input type="text" name="initial" value="${escHtml(f.kind === "poison" ? f.initial : "")}" placeholder="e.g. 1d6 Con  or  2d12 hp  or  unconsciousness 1 minute"></div>
-    <div class="form-group" data-for="disease"${f.kind === "disease" ? "" : ' style="display:none"'}><label>Incubation</label><input type="text" name="incubation" value="${escHtml(f.incubation)}" placeholder="e.g. 1d3 days"></div>
-    <div class="form-group"><label><span data-for="poison"${f.kind === "poison" ? "" : ' style="display:none"'}>Secondary damage</span><span data-for="disease"${f.kind === "disease" ? "" : ' style="display:none"'}>Damage (each day)</span></label><input type="text" name="secondary" value="${escHtml(f.secondary)}" placeholder="e.g. 2d6 Con  or  1d4 Con + 1d3 Wis"></div>
-    <div class="form-group" data-for="disease"${f.kind === "disease" ? "" : ' style="display:none"'}><label>Recovery</label>${sel("recover", [[2, "Two successful saves in a row"], [3, "Three successful saves in a row"]], f.recover)}</div>
-    <div class="form-group"><label>Price (gp)</label><input type="number" name="price" value="${escHtml(f.price)}" min="0" step="1"></div>
-    <div class="form-group"><label>Notes</label><input type="text" name="notes" value="${escHtml(f.notes)}" placeholder="Optional description"></div>
+    <div class="form-group"><label>${H("Type")}</label>${sel("kind", [["poison", t("Poison")], ["disease", t("Disease")]], f.kind)}</div>
+    <div class="form-group"><label>${H("Name")}</label><input type="text" name="name" value="${escHtml(f.name)}" placeholder="${H("e.g. Swamp Adder Venom")}"></div>
+    <div class="form-group"><label>${H("Delivery")}</label>${sel("delivery", DELIVERY.map((d) => [d, t(d)]), f.delivery)}</div>
+    <div class="form-group"><label>${H("Saving throw")}</label>${sel("saveType", Object.entries(SAVES).map(([k, l]) => [k, t(l)]), f.saveType)}<label style="flex:0 0 2.5em;text-align:right">DC</label><input type="number" name="dc" value="${escHtml(f.dc)}" min="1" step="1"></div>
+    <div class="form-group" data-for="poison"${f.kind === "poison" ? "" : ' style="display:none"'}><label>${H("Initial damage")}</label><input type="text" name="initial" value="${escHtml(f.kind === "poison" ? f.initial : "")}" placeholder="${H("e.g. 1d6 Con  or  2d12 hp  or  unconsciousness 1 minute")}"></div>
+    <div class="form-group" data-for="disease"${f.kind === "disease" ? "" : ' style="display:none"'}><label>${H("Incubation")}</label><input type="text" name="incubation" value="${escHtml(f.incubation)}" placeholder="${H("e.g. 1d3 days")}"></div>
+    <div class="form-group"><label><span data-for="poison"${f.kind === "poison" ? "" : ' style="display:none"'}>${H("Secondary damage")}</span><span data-for="disease"${f.kind === "disease" ? "" : ' style="display:none"'}>${H("Damage (each day)")}</span></label><input type="text" name="secondary" value="${escHtml(f.secondary)}" placeholder="${H("e.g. 2d6 Con  or  1d4 Con + 1d3 Wis")}"></div>
+    <div class="form-group" data-for="disease"${f.kind === "disease" ? "" : ' style="display:none"'}><label>${H("Recovery")}</label>${sel("recover", [[2, t("Two successful saves in a row")], [3, t("Three successful saves in a row")]], f.recover)}</div>
+    <div class="form-group"><label>${H("Price (gp)")}</label><input type="number" name="price" value="${escHtml(f.price)}" min="0" step="1"></div>
+    <div class="form-group"><label>${H("Notes")}</label><input type="text" name="notes" value="${escHtml(f.notes)}" placeholder="${H("Optional description")}"></div>
     <div class="hint" style="margin:-2px 0 6px 9.5em;font-size:0.85em;line-height:1.35">
-      <strong>What you can type in the damage boxes:</strong><br>
-      Ability damage: <code>1d6 Con</code> &nbsp;·&nbsp; Ability drain (permanent): <code>1 Con drain</code><br>
-      Hit point damage: <code>2d12 hp</code> &nbsp;·&nbsp; No effect: <code>0</code><br>
-      Condition, with optional duration: <code>unconsciousness 2d4 hours</code>, <code>paralysis 2d6 minutes</code><br>
-      Several effects: join with <code>+</code>, e.g. <code>1d4 Con + 1d3 Wis</code><br>
-      Anything else is posted to chat as a message. Check the preview below.
+      <strong>${H("What you can type in the damage boxes (in English):")}</strong><br>
+      ${H("Ability damage:")} <code>1d6 Con</code> &nbsp;·&nbsp; ${H("Ability drain (permanent):")} <code>1 Con drain</code><br>
+      ${H("Hit point damage:")} <code>2d12 hp</code> &nbsp;·&nbsp; ${H("No effect:")} <code>0</code><br>
+      ${H("Condition, with optional duration:")} <code>unconsciousness 2d4 hours</code>, <code>paralysis 2d6 minutes</code><br>
+      ${H("Several effects: join with {plus}, e.g. {example}", { plus: "\u0001", example: "\u0002" }).replace("\u0001", "<code>+</code>").replace("\u0002", "<code>1d4 Con + 1d3 Wis</code>")}<br>
+      ${H("Anything else is posted to chat as a message. Check the preview below.")}
     </div>
     <div class="tp-pc-extras"></div>
     <div class="tp-pc-preview"></div>
-    <div class="form-group"><label>Also add to Items</label><input type="checkbox" name="copyToWorld" checked><span class="hint" style="flex:2">Copies both items into the "${WORLD_FOLDER}" Items folder.</span></div>
+    <div class="form-group"><label>${H("Also add to Items")}</label><input type="checkbox" name="copyToWorld" checked><span class="hint" style="flex:2">${H("Copies both items into the \"{folder}\" Items folder.", { folder: WORLD_FOLDER })}</span></div>
     </div>`;
 }
 
@@ -527,20 +529,21 @@ function readForm(form, extras) {
 
 function previewHtml(f) {
   const list = (items) => `<ul>${items.map((t) => `<li>${escHtml(t)}</li>`).join("")}</ul>`;
-  const nm = titleCase(safeName(f.name)) || "(no name)";
+  const H = (s, d) => escHtml(t(s, d));
+  const nm = titleCase(safeName(f.name)) || t("(no name)");
   const errs = validateForm(f);
-  let h = `<h4>Will create: ${f.kind === "disease" ? "Disease" : "Poison"}, ${escHtml(nm)} (attack) and ${escHtml(nm)} (consumable)</h4>`;
-  if (f.kind === "poison") h += `<h4>Initial (on exposure, failed save)</h4>${list(partsPreview(parseEffectText(f.initial)))}`
-    + `<h4>Secondary (${secondaryWhen()} later, second failed save)</h4>${list(partsPreview(parseEffectText(f.secondary)))}`
-    + `<p>The poison then runs its course and ends. The Poisoned buff lasts ${POISON_SECONDARY_ROUNDS} rounds; conditions it caused last their own duration.</p>`;
-  else h += `<h4>After ${escHtml(f.incubation || "?")}, each day (failed save)</h4>${list(partsPreview(parseEffectText(f.secondary)))}`
-    + `<p>Recovery: ${RECOVER_TEXT(Number(f.recover))}.</p>`;
+  let h = `<h4>${H("Will create: {attack} (attack) and {name} (consumable)", { attack: `${f.kind === "disease" ? "Disease" : "Poison"}, ${nm}`, name: nm })}</h4>`;
+  if (f.kind === "poison") h += `<h4>${H("Initial (on exposure, failed save)")}</h4>${list(partsPreview(parseEffectText(f.initial)))}`
+    + `<h4>${H("Secondary ({when} later, second failed save)", { when: t("{min} minute ({n} rounds)", { min: POISON_SECONDARY_ROUNDS / 10, n: POISON_SECONDARY_ROUNDS }) })}</h4>${list(partsPreview(parseEffectText(f.secondary)))}`
+    + `<p>${H("The poison then runs its course and ends. The Poisoned buff lasts {n} rounds; conditions it caused last their own duration.", { n: POISON_SECONDARY_ROUNDS })}</p>`;
+  else h += `<h4>${H("After {time}, each day (failed save)", { time: f.incubation || "?" })}</h4>${list(partsPreview(parseEffectText(f.secondary)))}`
+    + `<p>${H(Number(f.recover) === 3 ? "Recovery: three successful saves in a row." : "Recovery: two successful saves in a row.")}</p>`;
   if (errs.length) h += `<p style="color:var(--color-level-error,#c00)">${errs.map(escHtml).join("<br>")}</p>`;
   return h;
 }
 
 export async function openPoisonCreator(state = null) {
-  if (!game.user.isGM) return ui.notifications.warn("Only the GM can create poisons and diseases.");
+  if (!game.user.isGM) return ui.notifications.warn(t("Only the GM can create poisons and diseases."));
   const groups = await templateIndex();
   let f = state?.form ?? blankForm();
   let extras = f.extras ?? [];
@@ -553,8 +556,8 @@ export async function openPoisonCreator(state = null) {
     if (!box || !form) return;
     const extrasEl = box.querySelector(".tp-pc-extras");
     const drawExtras = () => {
-      extrasEl.innerHTML = extras.length ? `<p class="hint">The template also has these effects:</p>` + extras.map((e, i) =>
-        `<div class="form-group"><label>${escHtml(e.name)}</label><input type="checkbox" name="extra${i}" ${e.keep === false ? "" : "checked"}><span class="hint" style="flex:2">Keep</span></div>`).join("") : "";
+      extrasEl.innerHTML = extras.length ? `<p class="hint">${escHtml(t("The template also has these effects:"))}</p>` + extras.map((e, i) =>
+        `<div class="form-group"><label>${escHtml(e.name)}</label><input type="checkbox" name="extra${i}" ${e.keep === false ? "" : "checked"}><span class="hint" style="flex:2">${escHtml(t("Keep"))}</span></div>`).join("") : "";
     };
     const refresh = () => {
       const kind = form.elements.kind.value;
@@ -579,16 +582,16 @@ export async function openPoisonCreator(state = null) {
   };
 
   const result = await DialogV2.wait({
-    window: { title: "Poison & Disease Creator", icon: "fas fa-flask" },
+    window: { title: t("Poison & Disease Creator"), icon: "fas fa-flask" },
     classes: ["tp-poison-creator"],
     position: { width: 560 },
     content: formHtml(f, groups, templateUuid),
     rejectClose: false,
     render: (event, dialog) => wire((dialog ?? event?.target)?.element ?? document),
     buttons: [{
-      action: "create", label: "Create", icon: "fas fa-flask", default: true,
+      action: "create", label: t("Create"), icon: "fas fa-flask", default: true,
       callback: (event, button) => ({ form: readForm(button.form, extras), copyToWorld: button.form.elements.copyToWorld.checked, templateUuid }),
-    }, { action: "cancel", label: "Cancel" }],
+    }, { action: "cancel", label: t("Cancel") }],
   });
   if (!result || result === "cancel") return;
   const errs = validateForm(result.form);
@@ -598,10 +601,10 @@ export async function openPoisonCreator(state = null) {
   }
   try {
     const made = await createPoison(result.form, { templateUuid: result.templateUuid || null, copyToWorld: result.copyToWorld });
-    if (made) { ui.notifications.info(`Created ${made.attack.name} and ${made.consumable.name}.`); made.attack.sheet.render(true); }
+    if (made) { ui.notifications.info(t("Created {attack} and {consumable}.", { attack: made.attack.name, consumable: made.consumable.name })); made.attack.sheet.render(true); }
   } catch (err) {
     console.error(`${MOD} | Poison & Disease Creator failed`, err);
-    ui.notifications.error(`Could not create it: ${err.message}`);
+    ui.notifications.error(t("Could not create it: {error}", { error: err.message }));
   }
 }
 
@@ -615,7 +618,7 @@ if (globalThis.Hooks) {
     if (mod) mod.api = { ...(mod.api ?? {}), openPoisonCreator, createPoison };
   });
   globalThis.AxecleftTools?.register({
-    module: MOD, name: "poison-creator", title: "Poison & Disease Creator", img: "icons/svg/poison.svg",
-    hint: "Create a new poison or disease (attack and consumable)", gmOnly: true, onClick: () => openPoisonCreator(),
+    module: MOD, name: "poison-creator", title: /*t*/"Poison & Disease Creator", img: "icons/svg/poison.svg",
+    hint: /*t*/"Create a new poison or disease (attack and consumable)", gmOnly: true, onClick: () => openPoisonCreator(),
   });
 }

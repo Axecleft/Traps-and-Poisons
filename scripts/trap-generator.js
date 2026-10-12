@@ -9,8 +9,8 @@
  *   game.modules.get("traps-and-poisons").api.openGenerator();
  */
 
-import { enIndex, enName } from "./trap-pricing.js";
-import { RULE_TEMPLATES, ruleTemplatesAt, rollRuleTrap, POISONS as SRD_POISONS, poisonByKey, diseaseByKey, poisonText, balancedPoisons } from "./trap-rules.js";
+import { enIndex, enName, t } from "./trap-pricing.js";
+import { RULE_TEMPLATES, ruleTemplatesAt, rollRuleTrap, choiceLabel, POISONS as SRD_POISONS, poisonByKey, diseaseByKey, poisonText, balancedPoisons } from "./trap-rules.js";
 export { RULE_TEMPLATES };
 
 const MOD = "traps-and-poisons";
@@ -72,11 +72,11 @@ function poolFor(cr, includeSrd, includeRules) {
  * observed options, so every combination the website can produce is possible.
  */
 export function rollTrap(cr, { name = null, includeSrd = true, includeRules = true, rng = Math.random, custom = null } = {}) {
-  if (!DATA[cr]) throw new Error(`No trap data for CR ${cr}`);
+  if (!DATA[cr]) throw new Error(t("No trap data for CR {cr}", { cr }));
   const ruleByName = name && RULE_TEMPLATES.find((T) => T.n === name);
   const pool = poolFor(cr, includeSrd, includeRules);
   const T = ruleByName ? { n: name, rule: ruleByName } : name ? pool.find((t) => t.n === name) : pickWeighted(pool, rng);
-  if (!T) throw new Error(`No trap named "${name}" at CR ${cr}`);
+  if (!T) throw new Error(t("No trap named \"{name}\" at CR {cr}", { name, cr }));
   if (T.srd) return { name: T.n, cr, text: T.text, srd: true, uuid: T.uuid };
   if (T.rule) {
     const bases = srdBases();
@@ -127,6 +127,7 @@ export function rollTrap(cr, { name = null, includeSrd = true, includeRules = tr
 export function templateFor(cr, name) { return DATA?.[cr]?.find((t) => t.n === name) ?? null; }
 
 const esc = (v) => String(v).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const H = (s, d) => esc(t(s, d));
 const valueSort = (a, b) => (parseFloat(a.replace(/^[^\d-]*/, "")) - parseFloat(b.replace(/^[^\d-]*/, ""))) || a.localeCompare(b);
 
 /**
@@ -135,16 +136,16 @@ const valueSort = (a, b) => (parseFloat(a.replace(/^[^\d-]*/, "")) - parseFloat(
  */
 /** Customize form for a rules-built (poison/disease) template: one choice per dimension. */
 export function ruleCustomizerContent(cr, R) {
-  const LABELS = { agent: "Poison / disease", room: "Base trap", depth: "Pit depth", reflex: "Reflex save", multi: "Targets", spikes: "Spikes",
-    onset: "Onset delay", atk: "Attack bonus", bonus: "Damage", search: "Search DC", disable: "Disable Device DC" };
+  const LABELS = { agent: /*t*/"Poison / disease", room: /*t*/"Base trap", depth: /*t*/"Pit depth", reflex: /*t*/"Reflex save", multi: /*t*/"Targets", spikes: /*t*/"Spikes",
+    onset: /*t*/"Onset delay", atk: /*t*/"Attack bonus", bonus: /*t*/"Damage", search: /*t*/"Search DC", disable: /*t*/"Disable Device DC" };
   const sign = (n) => (n >= 0 ? `+${n}` : `${n}`);
   let html = `<div class="tp-custom">
-    <p class="hint">Each choice shows its SRD CR modifier. Leave a choice on Random and the generator fills it in so the trap comes as close to CR ${cr} as it can; the final CR is the sum of the modifiers.</p>
+    <p class="hint">${H("Each choice shows its SRD CR modifier. Leave a choice on Random and the generator fills it in so the trap comes as close to CR {cr} as it can; the final CR is the sum of the modifiers.", { cr })}</p>
     <fieldset><legend>${esc(R.n)}</legend>`;
   for (const [k, opts] of Object.entries(R.dims)) {
     if (opts.length < 2) continue;
-    html += `<div class="form-group"><label>${LABELS[k] ?? cap(k)}</label><select name="rule.${k}"><option value="">Random</option>${
-      opts.map((o) => `<option value="${esc(Array.isArray(o.v) ? o.v[0] : o.v)}">${esc(o.label.replace(/ \(\+\d+\)$/, ""))} (CR ${sign(o.cr)})</option>`).join("")}</select></div>`;
+    html += `<div class="form-group"><label>${LABELS[k] ? H(LABELS[k]) : cap(k)}</label><select name="rule.${k}"><option value="">${H("Random")}</option>${
+      opts.map((o) => `<option value="${esc(Array.isArray(o.v) ? o.v[0] : o.v)}">${esc(choiceLabel(o).replace(/ \(\+\d+\)$/, ""))} (CR ${sign(o.cr)})</option>`).join("")}</select></div>`;
   }
   return html + `</fieldset></div>`;
 }
@@ -155,12 +156,12 @@ export function customizerContent(cr, T) {
   const select = (name, label, map) => {
     const keys = Object.keys(map ?? {});
     if (!keys.length) return "";
-    return `<div class="form-group"><label>${label}</label><select name="${name}"><option value="">Random</option>${keys.sort(valueSort).map((k) => `<option value="${esc(k)}">${esc(k)}</option>`).join("")}</select></div>`;
+    return `<div class="form-group"><label>${H(label)}</label><select name="${name}"><option value="">${H("Random")}</option>${keys.sort(valueSort).map((k) => `<option value="${esc(k)}">${esc(k)}</option>`).join("")}</select></div>`;
   };
   const box = (name, values) => {
     const id = datalist(`tp-dl-${name.replace(/\W/g, "-")}`, values.sort(valueSort));
     const hint = values.length === 1 ? values[0] : `${values[0]}–${values[values.length - 1]}`;
-    return `<input type="text" class="tp-slot" name="${name}" list="${id}" placeholder="${esc(hint)}" title="Suggested: ${esc(values.join(", "))}. Leave blank to roll.">`;
+    return `<input type="text" class="tp-slot" name="${name}" list="${id}" placeholder="${esc(hint)}" title="${H("Suggested: {values}. Leave blank to roll.", { values: values.join(", ") })}">`;
   };
   let html = `<style>
       .tp-custom .tp-slot { width: 5.5em; display: inline-block; margin: 0 2px; }
@@ -169,24 +170,24 @@ export function customizerContent(cr, T) {
       .tp-custom .tp-alt.tp-hidden { display: none; }
     </style>
     <div class="tp-custom">
-    <p class="hint">Leave anything blank to roll it randomly. Boxes suggest the values the generator uses, but you can type any value.</p>
-    <fieldset><legend>Trap</legend>
-      ${select("type", "Type", T.type)}${select("trig", "Trigger", T.trig)}${select("reset", "Reset", T.reset)}${select("byp", "Bypass", T.byp)}
-      <div class="form-group"><label>Search DC</label>${box("search", Object.keys(T.search))}</div>
-      <div class="form-group"><label>Disable Device DC</label>${box("disable", Object.keys(T.disable))}</div>
+    <p class="hint">${H("Leave anything blank to roll it randomly. Boxes suggest the values the generator uses, but you can type any value.")}</p>
+    <fieldset><legend>${H("Trap")}</legend>
+      ${select("type", /*t*/"Type", T.type)}${select("trig", /*t*/"Trigger", T.trig)}${select("reset", /*t*/"Reset", T.reset)}${select("byp", /*t*/"Bypass", T.byp)}
+      <div class="form-group"><label>${H("Search DC")}</label>${box("search", Object.keys(T.search))}</div>
+      <div class="form-group"><label>${H("Disable Device DC")}</label>${box("disable", Object.keys(T.disable))}</div>
     </fieldset>`;
   T.groups.forEach((g, gi) => {
-    const legend = g.g === "duration" ? "Duration" : g.g === "poison" ? "Poison" : "Effect";
-    html += `<fieldset><legend>${legend}</legend>`;
+    const legend = t(g.g === "duration" ? "Duration" : g.g === "poison" ? "Poison" : "Effect");
+    html += `<fieldset><legend>${esc(legend)}</legend>`;
     if (g.g === "poison") {
       const opts = SRD_POISONS.filter((p) => p.vector === "injury" || p.vector === "contact")
-        .map((p) => `<option value="${esc(p.key)}">${esc(cap(p.key))} (${p.vector}, DC ${p.dc}, CR +${p.cr})</option>`).join("");
-      html += `<div class="form-group"><label>Poison</label><select name="g${gi}.poison"><option value="">Random (similar strength)</option>${opts}</select></div>`;
+        .map((p) => `<option value="${esc(p.key)}">${esc(cap(p.key))} (${H(p.vector === "contact" ? "contact" : "injury")}, DC ${p.dc}, CR +${p.cr})</option>`).join("");
+      html += `<div class="form-group"><label>${H("Poison")}</label><select name="g${gi}.poison"><option value="">${H("Random (similar strength)")}</option>${opts}</select></div>`;
       html += `</fieldset>`;
       return;
     }
     if (g.alts.length > 1) {
-      html += `<div class="form-group"><label>Choose</label><select name="g${gi}.alt" class="tp-alt-select" data-group="${gi}"><option value="">Random</option>${
+      html += `<div class="form-group"><label>${H("Choose")}</label><select name="g${gi}.alt" class="tp-alt-select" data-group="${gi}"><option value="">${H("Random")}</option>${
         g.alts.map((a, ai) => `<option value="${ai}">${esc(a.s.replace(/#/g, "…"))}</option>`).join("")}</select></div>`;
     }
     g.alts.forEach((a, ai) => {
@@ -220,7 +221,7 @@ async function openCustomizer(opts) {
   const R = picked?.rule ?? null;
   const T = R ? null : picked;
   if (T?.srd) {
-    ui.notifications.info(`${T.n} is an SRD sample trap with fixed stats, so it can't be customized. Generating it as-is.`);
+    ui.notifications.info(t("{trap} is an SRD sample trap with fixed stats, so it can't be customized. Generating it as-is.", { trap: T.n }));
     return generate(opts);
   }
   const { DialogV2 } = foundry.applications.api;
@@ -232,7 +233,7 @@ async function openCustomizer(opts) {
     });
   };
   const custom = await DialogV2.wait({
-    window: { title: `Customize: ${picked.n} (CR ${opts.cr})`, icon: "fas fa-sliders" },
+    window: { title: t("Customize: {trap} (CR {cr})", { trap: picked.n, cr: opts.cr }), icon: "fas fa-sliders" },
     position: { width: R ? 480 : 620 },
     content: R ? ruleCustomizerContent(opts.cr, R) : customizerContent(opts.cr, T),
     rejectClose: false,
@@ -243,9 +244,9 @@ async function openCustomizer(opts) {
       (globalThis.AxecleftTools?.enhanceDatalists ?? globalThis.AxecleftTreasure?.enhanceDatalists)?.(root);
     },
     buttons: [{
-      action: "create", label: opts.createActors ? "Create Trap" : "Post to Chat", icon: "fas fa-dice-d20", default: true,
+      action: "create", label: t(opts.createActors ? "Create Trap" : "Post to Chat"), icon: "fas fa-dice-d20", default: true,
       callback: (event, button) => readCustomForm(new FormData(button.form).entries()),
-    }, { action: "cancel", label: "Cancel" }],
+    }, { action: "cancel", label: t("Cancel") }],
   });
   if (!custom || custom === "cancel") return;
   return generate({ ...opts, trap: picked.n, custom });
@@ -540,7 +541,7 @@ function notesHtml(trap, text) {
   const fx = text.replace(/\s+/g, " ").split(";").map((s) => s.trim()).slice(1)
     .filter((s) => !/^(CR |mechanical|magic device|spell$|Search DC|Disable Device DC)/.test(s) && s !== trap.trigger);
   lines.push(fx.join("; "));
-  return lines.map((l) => `<p>${l}</p>`).join("\n") + `\n<p><em>Generated by the Random Trap Generator.</em></p>`;
+  return lines.map((l) => `<p>${l}</p>`).join("\n") + `\n<p><em>${esc(t("Generated by the Random Trap Generator."))}</em></p>`;
 }
 
 async function getFolder() {
@@ -572,7 +573,7 @@ export async function createTrapActor(rolled, { folder } = {}) {
       Object.assign(data.system.details, { cr: rolled.cr, totalCr: rolled.cr });
       const old = data.system.details.notes?.value ?? "";
       data.system.details.notes = { ...(data.system.details.notes ?? {}), value: `${old}\n<p><strong>Tainted:</strong> ${cap(rolled.base.agentText)}.</p>`
-        + (extra.notes.length ? `\n<p>Notes: ${extra.notes.join("; ")}</p>` : "") + `\n<p><em>Generated by the Random Trap Generator.</em></p>` };
+        + (extra.notes.length ? `\n<p>Notes: ${extra.notes.join("; ")}</p>` : "") + `\n<p><em>${esc(t("Generated by the Random Trap Generator."))}</em></p>` };
       foundry.utils.mergeObject(data.prototypeToken, { name: rolled.name });
       foundry.utils.setProperty(data, `flags.${MOD}.generated`, { text: rolled.text, cr: rolled.cr, srd: false });
       return Actor.create(data);
@@ -603,23 +604,23 @@ export async function createTrapActor(rolled, { folder } = {}) {
 /* -------------------------------------------- */
 
 function trapOptions(cr, includeSrd, includeRules = true) {
-  const opts = templatesFor(cr, { includeRules }).filter((t) => includeSrd || !t.srd)
-    .map((t) => `<option value="${t.name}">${t.name}${t.srd ? " (SRD)" : t.rule ? " (poison/disease)" : ""}</option>`);
-  return `<option value="">Random</option>${opts.join("")}`;
+  const opts = templatesFor(cr, { includeRules }).filter((x) => includeSrd || !x.srd)
+    .map((x) => `<option value="${esc(x.name)}">${esc(x.name)}${x.srd ? " (SRD)" : x.rule ? H(" (poison/disease)") : ""}</option>`);
+  return `<option value="">${H("Random")}</option>${opts.join("")}`;
 }
 
 export async function openGenerator() {
-  if (!game.user.isGM) return ui.notifications.warn("Only the GM can generate traps.");
+  if (!game.user.isGM) return ui.notifications.warn(t("Only the GM can generate traps."));
   await loadData();
   const crOpts = Array.from({ length: 20 }, (_, i) => `<option value="${i + 1}">CR ${i + 1}</option>`).join("");
   const content = `
-    <div class="form-group"><label>Challenge Rating</label><select name="cr">${crOpts}</select></div>
-    <div class="form-group"><label>Trap</label><select name="trap">${trapOptions(1, true)}</select></div>
-    <div class="form-group"><label>How many</label><input type="number" name="count" value="1" min="1" max="10" step="1"></div>
-    <div class="form-group"><label>Include SRD sample traps</label><input type="checkbox" name="includeSrd" checked></div>
-    <div class="form-group"><label>Include poison &amp; disease traps</label><input type="checkbox" name="includeRules" checked></div>
-    <div class="form-group"><label>Create actors</label><input type="checkbox" name="createActors" checked></div>
-    <p class="hint">Unchecking "Create actors" only posts the stat lines to chat. Use Customize… to choose the trap\'s trigger, damage, DCs and other values yourself.</p>`;
+    <div class="form-group"><label>${H("Challenge Rating")}</label><select name="cr">${crOpts}</select></div>
+    <div class="form-group"><label>${H("Trap")}</label><select name="trap">${trapOptions(1, true)}</select></div>
+    <div class="form-group"><label>${H("How many")}</label><input type="number" name="count" value="1" min="1" max="10" step="1"></div>
+    <div class="form-group"><label>${H("Include SRD sample traps")}</label><input type="checkbox" name="includeSrd" checked></div>
+    <div class="form-group"><label>${H("Include poison & disease traps")}</label><input type="checkbox" name="includeRules" checked></div>
+    <div class="form-group"><label>${H("Create actors")}</label><input type="checkbox" name="createActors" checked></div>
+    <p class="hint">${H("Unchecking \"Create actors\" only posts the stat lines to chat. Use Customize… to choose the trap's trigger, damage, DCs and other values yourself.")}</p>`;
 
   const refresh = (root) => {
     const form = root.querySelector("form") ?? root;
@@ -630,25 +631,25 @@ export async function openGenerator() {
 
   const { DialogV2 } = foundry.applications.api;
   const result = await DialogV2.wait({
-    window: { title: "Random Trap Generator", icon: "fas fa-dice-d20" },
+    window: { title: t("Random Trap Generator"), icon: "fas fa-dice-d20" },
     content,
     rejectClose: false,
     render: (event, dialog) => refresh((dialog ?? event?.target)?.element ?? document),
     buttons: [{
-      action: "generate", label: "Generate", icon: "fas fa-dice-d20", default: true,
+      action: "generate", label: t("Generate"), icon: "fas fa-dice-d20", default: true,
       callback: (event, button) => {
         const f = button.form;
         return { cr: +f.elements.cr.value, trap: f.elements.trap.value || null, count: Math.min(10, Math.max(1, +f.elements.count.value || 1)),
           includeSrd: f.elements.includeSrd.checked, includeRules: f.elements.includeRules.checked, createActors: f.elements.createActors.checked };
       },
     }, {
-      action: "customize", label: "Customize…", icon: "fas fa-sliders",
+      action: "customize", label: t("Customize…"), icon: "fas fa-sliders",
       callback: (event, button) => {
         const f = button.form;
         return { customize: true, cr: +f.elements.cr.value, trap: f.elements.trap.value || null, count: Math.min(10, Math.max(1, +f.elements.count.value || 1)),
           includeSrd: f.elements.includeSrd.checked, includeRules: f.elements.includeRules.checked, createActors: f.elements.createActors.checked };
       },
-    }, { action: "cancel", label: "Cancel" }],
+    }, { action: "cancel", label: t("Cancel") }],
   });
   if (!result || result === "cancel") return;
   if (result.customize) return openCustomizer(result);
@@ -657,13 +658,13 @@ export async function openGenerator() {
 
 /** Chat card HTML. Traps without an actor get a "Create Actor" button. */
 function chatContent(cr, traps) {
-  const rows = traps.map((t, i) => {
-    const title = t.actor ? `@UUID[${t.actor}]{${t.name}}` : `<strong>${t.name}</strong>`;
-    const button = t.actor ? "" :
-      `<br><button type="button" class="tp-create-trap" data-index="${i}"><i class="fas fa-user-plus"></i> Create Actor</button>`;
-    return `<li>${title}${t.srd ? " (SRD)" : ""}<br><small>${t.text}</small>${button}</li>`;
+  const rows = traps.map((x, i) => {
+    const title = x.actor ? `@UUID[${x.actor}]{${x.name}}` : `<strong>${x.name}</strong>`;
+    const button = x.actor ? "" :
+      `<br><button type="button" class="tp-create-trap" data-index="${i}"><i class="fas fa-user-plus"></i> ${H("Create Actor")}</button>`;
+    return `<li>${title}${x.srd ? " (SRD)" : ""}<br><small>${x.text}</small>${button}</li>`;
   });
-  return `<h3>Random Trap${traps.length > 1 ? "s" : ""} — CR ${cr}</h3><ol>${rows.join("")}</ol>`;
+  return `<h3>${H(traps.length > 1 ? "Random Traps — CR {cr}" : "Random Trap — CR {cr}", { cr })}</h3><ol>${rows.join("")}</ol>`;
 }
 
 export async function generate({ cr, trap = null, count = 1, includeSrd = true, includeRules = true, createActors = true, custom = null }) {
@@ -675,14 +676,14 @@ export async function generate({ cr, trap = null, count = 1, includeSrd = true, 
     const entry = { name: rolled.name, cr: rolled.cr, text: rolled.text.replace(/\s+/g, " "), srd: rolled.srd, uuid: rolled.uuid ?? null, base: rolled.base ?? null, actor: null };
     if (createActors) {
       try { last = await createTrapActor(rolled); entry.actor = last.uuid; }
-      catch (err) { console.error(`${MOD} | Failed to create trap actor`, err, rolled); ui.notifications.error(`Could not create ${rolled.name}: ${err.message}`); }
+      catch (err) { console.error(`${MOD} | Failed to create trap actor`, err, rolled); ui.notifications.error(t("Could not create {name}: {error}", { name: rolled.name, error: err.message })); }
     }
     traps.push(entry);
   }
   await ChatMessage.create({
     content: chatContent(cr, traps),
     whisper: ChatMessage.getWhisperRecipients("GM").map((u) => u.id),
-    speaker: { alias: "Random Trap Generator" },
+    speaker: { alias: t("Random Trap Generator") },
     flags: { [MOD]: { cr, traps } },
   });
   if (createActors && count === 1 && last) last.sheet.render(true);
@@ -709,7 +710,7 @@ function activateChatButtons(message, html) {
       } catch (err) {
         btn.disabled = false;
         console.error(`${MOD} | Failed to create trap actor`, err, traps[i]);
-        ui.notifications.error(`Could not create ${traps[i].name}: ${err.message}`);
+        ui.notifications.error(t("Could not create {name}: {error}", { name: traps[i].name, error: err.message }));
       }
     });
   });
@@ -728,8 +729,8 @@ if (globalThis.Hooks) {
   if (globalThis.AxecleftTools) {
     // Shared "Axecleft's Tools" menu in D35E's Game Master Tools (see scripts/axecleft-tools.js)
     globalThis.AxecleftTools.register({
-      module: MOD, name: "random-trap", title: "Random Trap Generator", img: "icons/svg/trap.svg",
-      hint: "Roll random traps by CR and create trap actors", gmOnly: true, onClick: () => openGenerator(),
+      module: MOD, name: "random-trap", title: /*t*/"Random Trap Generator", img: "icons/svg/trap.svg",
+      hint: /*t*/"Roll random traps by CR and create trap actors", gmOnly: true, onClick: () => openGenerator(),
     });
   }
   Hooks.on("renderActorDirectory", (app, html) => {
@@ -741,7 +742,7 @@ if (globalThis.Hooks) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "tp-random-trap";
-    btn.innerHTML = '<i class="fas fa-dice-d20"></i> Random Trap';
+    btn.innerHTML = `<i class="fas fa-dice-d20"></i> ${H("Random Trap")}`;
     btn.addEventListener("click", (ev) => { ev.preventDefault(); openGenerator(); });
     target.append(btn);
   });

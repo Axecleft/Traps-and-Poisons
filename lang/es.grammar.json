@@ -1,0 +1,32 @@
+{
+ "__about": "Reglas gramaticales en español (borrador para Axecleft's Tools 8.3).",
+ "and": "y",
+ "or": "o",
+ "comma": ", ",
+ "articles": {
+  "a": {
+   "m": "un",
+   "f": "una",
+   "mp": "unos",
+   "fp": "unas"
+  },
+  "the": {
+   "m": "el",
+   "f": "la",
+   "mp": "los",
+   "fp": "las"
+  }
+ },
+ "defaultGender": "m",
+ "elision": {
+  "words": [],
+  "before": "",
+  "except": []
+ },
+ "contractions": {
+  "de el": "del",
+  "a el": "al"
+ },
+ "capitalize": "first",
+ "words": {}
+}

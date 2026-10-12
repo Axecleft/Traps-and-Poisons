@@ -1,0 +1,79 @@
+{
+ "__about": "Règles de grammaire françaises (brouillon pour Axecleft's Tools 8.3).",
+ "and": "et",
+ "or": "ou",
+ "comma": ", ",
+ "articles": {
+  "a": {
+   "m": "un",
+   "f": "une",
+   "mp": "des",
+   "fp": "des"
+  },
+  "the": {
+   "m": "le",
+   "f": "la",
+   "mp": "les",
+   "fp": "les"
+  }
+ },
+ "defaultGender": "m",
+ "elision": {
+  "words": [
+   "de",
+   "le",
+   "la",
+   "que"
+  ],
+  "before": "aeiouyàâäéèêëîïôöùûüœæh",
+  "except": [
+   "hache",
+   "hachette",
+   "hallebarde",
+   "harnois",
+   "haubert",
+   "heaume",
+   "hameçon",
+   "harpe",
+   "harpon",
+   "hotte",
+   "houx",
+   "hutte",
+   "hibou",
+   "héron",
+   "hérisson",
+   "homard",
+   "hareng",
+   "haricot",
+   "haillon",
+   "hanche",
+   "harde",
+   "hausse",
+   "haut",
+   "haute",
+   "hauts",
+   "hautes",
+   "hobgobelin",
+   "harpie",
+   "hyène",
+   "héros",
+   "hérault",
+   "hêtre",
+   "haie",
+   "hall",
+   "hamac",
+   "hameau",
+   "hangar",
+   "hasard",
+   "hâte"
+  ]
+ },
+ "contractions": {
+  "de le": "du",
+  "de les": "des",
+  "à le": "au",
+  "à les": "aux"
+ },
+ "capitalize": "first",
+ "words": {}
+}

@@ -1,5 +1,5 @@
 /**
- * Axecleft's Crafting — shared engine, version 1.6.
+ * Axecleft's Crafting — shared engine, version 1.9.
  *
  * Copy this same file into every Axecleft module that makes craftable items (Armory, Curios, Gemstones,
  * Traps, Poisons and Diseases) and list it in module.json "esmodules" after axecleft-tools.js and before the
@@ -34,7 +34,7 @@
  * both the nonepic and the epic creation feat (plan.epicFeat, or the epic version of plan.feat), only while the shared Epic
  * items switch is on; time 1 day per 10,000 gp of base price (Axecleft house rule; reported, not enforced).
  */
-const AXECLEFT_CRAFTING_VERSION = 1.7;
+const AXECLEFT_CRAFTING_VERSION = 1.9; // 1.9: text in the world's language (Axecleft's Tools 8.2 language files)
 const AXECLEFT_CRAFTING_HOST = (() => {
   try { return decodeURIComponent(new URL(import.meta.url).pathname).match(/\/modules\/([^/]+)\//)?.[1] ?? null; } catch (e) { return null; }
 })();
@@ -54,23 +54,27 @@ const AXECLEFT_CRAFTING_HOST = (() => {
   const opt = (v, label, sel, extra = "") => `<option value="${esc(v)}"${String(v) === String(sel ?? "") ? " selected" : ""}${extra}>${esc(label)}</option>`;
   const normName = (s) => String(s ?? "").toLowerCase().replace(/[’']/g, "'").replace(/[^a-z0-9']+/g, " ").trim();
   const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
-  const gp = (n) => `${round2(n).toLocaleString("en-US")} gp`;
+  // Text in the world's language (Axecleft's Tools 8.2 language files), else the English
+  const t = (s, d) => globalThis.AxecleftTools?.t?.(s, d) ?? (d ? String(s).replace(/\{(\w+)\}/g, (m, k) => d[k] ?? m) : String(s));
+  const num = (n) => Number(n).toLocaleString(globalThis.AxecleftTools?.i18n?.lang && globalThis.AxecleftTools.i18n.lang !== "en" ? globalThis.AxecleftTools.i18n.lang : "en-US");
+  const gp = (n) => t("{n} gp", { n: num(round2(n)) });
   const remember = (k, v) => { try { localStorage.setItem(STORE + k, v); } catch (e) { /* private mode */ } };
   const recall = (k, d) => { try { return localStorage.getItem(STORE + k) ?? d; } catch (e) { return d; } };
-  const ROLL_MODES = { publicroll: "Public roll", gmroll: "Private GM roll", blindroll: "Blind GM roll" };
+  /*t*/"good"; /*t*/"evil"; /*t*/"lawful"; /*t*/"chaotic"; // alignment words in "Creator must be {alignment}"
+  const ROLL_MODES = { publicroll: /*t*/"Public roll", gmroll: /*t*/"Private GM roll", blindroll: /*t*/"Blind GM roll" };
 
   /* ------------------------------------------ */
   /*  Settings                                  */
   /* ------------------------------------------ */
   let ns = null;
   const SETTINGS = {
-    playersMayCraft: { name: "Players may craft", hint: "Players can open the Crafting window and send requests to the GM. Nothing is made or charged until the GM approves.", type: Boolean, default: true },
-    magicChecks: { name: "Magic item checks", hint: "SRD: no check to make a magic item; every prerequisite must be met. Spellcraft (house rule): Spellcraft DC 5 + caster level, +5 for each missing prerequisite (other than the feat and caster level) instead of blocking; failing by 5 or more wastes the gp and XP.", type: String, default: "srd", choices: { srd: "SRD (no check)", spellcraft: "Spellcraft check (house rule)" } },
-    poisonRule: { name: "Poison crafting", hint: "The SRD has no rule for making poison. House rule: Craft (alchemy) against the poison's save DC, raw materials ⅓ of the price, spellcasters only (as for alchemy).", type: String, default: "house", choices: { house: "House rule", off: "Off" } },
-    rollMode: { name: "Crafting checks are rolled as", hint: "The default when you approve a request; you can change it on each request card.", type: String, default: "publicroll", choices: ROLL_MODES },
-    chargeGp: { name: "Charge gp", hint: "Spend the crafter's gold when a request is approved.", type: Boolean, default: true },
-    chargeXp: { name: "Charge XP", hint: "Spend the crafter's experience points when a request is approved.", type: Boolean, default: true },
-    xpFloor: { name: "XP can't cost a level", hint: "SRD: a character can't spend so much XP on an item that he or she loses a level.", type: Boolean, default: true },
+    playersMayCraft: { name: /*t*/"Players may craft", hint: /*t*/"Players can open the Crafting window and send requests to the GM. Nothing is made or charged until the GM approves.", type: Boolean, default: true },
+    magicChecks: { name: /*t*/"Magic item checks", hint: /*t*/"SRD: no check to make a magic item; every prerequisite must be met. Spellcraft (house rule): Spellcraft DC 5 + caster level, +5 for each missing prerequisite (other than the feat and caster level) instead of blocking; failing by 5 or more wastes the gp and XP.", type: String, default: "srd", choices: { srd: /*t*/"SRD (no check)", spellcraft: /*t*/"Spellcraft check (house rule)" } },
+    poisonRule: { name: /*t*/"Poison crafting", hint: /*t*/"The SRD has no rule for making poison. House rule: Craft (alchemy) against the poison's save DC, raw materials ⅓ of the price, spellcasters only (as for alchemy).", type: String, default: "house", choices: { house: /*t*/"House rule", off: /*t*/"Off" } },
+    rollMode: { name: /*t*/"Crafting checks are rolled as", hint: /*t*/"The default when you approve a request; you can change it on each request card.", type: String, default: "publicroll", choices: ROLL_MODES },
+    chargeGp: { name: /*t*/"Charge gp", hint: /*t*/"Spend the crafter's gold when a request is approved.", type: Boolean, default: true },
+    chargeXp: { name: /*t*/"Charge XP", hint: /*t*/"Spend the crafter's experience points when a request is approved.", type: Boolean, default: true },
+    xpFloor: { name: /*t*/"XP can't cost a level", hint: /*t*/"SRD: a character can't spend so much XP on an item that he or she loses a level.", type: Boolean, default: true },
   };
   function registerSettings() {
     for (const n of [host(), "world"].filter(Boolean)) {
@@ -97,6 +101,7 @@ const AXECLEFT_CRAFTING_HOST = (() => {
     bowmaking: ["bowyer", "arcs", "fabrication d'arcs", "arquero", "arcos", "fabricación de arcos", "arqueiro"],
     alchemy: ["alchimie", "alquimia"], trapmaking: ["pièges", "fabrication de pièges", "trampas", "fabricación de trampas", "armadilhas"],
   };
+  /*t*/"weaponsmithing"; /*t*/"armorsmithing"; /*t*/"bowmaking"; /*t*/"alchemy"; /*t*/"trapmaking"; // Craft skill names shown as "Craft ({skill}), untrained"
   const actorInfo = {
     feats(actor) { return new Set((actor?.items ?? []).filter((i) => i.type === "feat").flatMap(namesOf)); },
     /** Caster levels of the spellbooks in use: [{ key, name, cl, spontaneous }]. */
@@ -161,11 +166,11 @@ const AXECLEFT_CRAFTING_HOST = (() => {
         for (const [id, s] of Object.entries(crf[group] ?? {})) {
           const sn = normName(s?.name);
           if (sn && words.some((w) => sn.includes(w) || w.includes(sn))) {
-            return { rollId: `crf.${group}.${id}`, label: `Craft (${s.name})`, mod: Number(s.mod ?? 0) || 0, trained: (Number(s.rank ?? 0) || 0) > 0 };
+            return { rollId: `crf.${group}.${id}`, label: t("Craft ({skill})", { skill: s.name }), mod: Number(s.mod ?? 0) || 0, trained: (Number(s.rank ?? 0) || 0) > 0 };
           }
         }
       }
-      return { rollId: "crf", label: `Craft (${name}), untrained`, mod: Number(crf.mod ?? 0) || 0, trained: false };
+      return { rollId: "crf", label: t("Craft ({skill}), untrained", { skill: t(name) }), mod: Number(crf.mod ?? 0) || 0, trained: false };
     },
     skill(actor, id, label) {
       const s = sys(actor).skills?.[id] ?? {};
@@ -194,7 +199,7 @@ const AXECLEFT_CRAFTING_HOST = (() => {
       update[`system.${purse}`] = p;
       if (rest <= 0) break;
     }
-    if (rest > 0) throw new Error(`${actor.name} doesn't have ${gp(amount)}.`);
+    if (rest > 0) throw new Error(t("{name} doesn't have {gp}.", { name: actor.name, gp: gp(amount) }));
     return update;
   }
 
@@ -224,21 +229,21 @@ const AXECLEFT_CRAFTING_HOST = (() => {
     if (!setting("chargeGp")) p.gp = 0;
     if (!setting("chargeXp")) p.xp = 0;
     p.days = p.magic ? Math.max(1, Math.ceil(base / (p.epic ? 10000 : 1000))) : null;
-    if (p.epic) p.notes = [`Epic item (SRD): XP = ${p.scroll ? "market price ÷ 25 + 1,000" : "market price ÷ 100 + 10,000"}; needs both ${feat0 ?? "the creation feat"} and ${p.epicFeat ?? "its epic version"}. Time: 1 day per 10,000 gp of base price (house rule; not enforced).`, ...(p.notes ?? [])];
+    if (p.epic) p.notes = [t(p.scroll ? "Epic item (SRD): XP = market price ÷ 25 + 1,000; needs both {feat} and {epicFeat}. Time: 1 day per 10,000 gp of base price (house rule; not enforced)." : "Epic item (SRD): XP = market price ÷ 100 + 10,000; needs both {feat} and {epicFeat}. Time: 1 day per 10,000 gp of base price (house rule; not enforced).", { feat: feat0 ?? t("the creation feat"), epicFeat: p.epicFeat ?? t("its epic version") }), ...(p.notes ?? [])];
     const req = [];
     if (actor && p.magic) {
       const feats = actorInfo.feats(actor);
       const feat = feat0;
-      if (feat) req.push({ key: "feat", label: feat, ok: feats.has(normName(feat)), detail: feats.has(normName(feat)) ? "has the feat" : "doesn't have the feat", waivable: false });
+      if (feat) req.push({ key: "feat", label: feat, ok: feats.has(normName(feat)), detail: feats.has(normName(feat)) ? t("has the feat") : t("doesn't have the feat"), waivable: false });
       if (p.epic) {
         const on = globalThis.AxecleftTreasure?.rules?.()?.epic;
-        if (on === false) req.push({ key: "epic", label: "Epic items allowed", ok: false, detail: "Epic items is off (Treasure Generator → Generation settings)", waivable: false });
+        if (on === false) req.push({ key: "epic", label: t("Epic items allowed"), ok: false, detail: t("Epic items is off (Treasure Generator → Generation settings)"), waivable: false });
         const ef = p.epicFeat;
         const already = (p.requirements ?? []).some((r) => normName(r.label) === normName(ef));
-        if (ef && normName(ef) !== normName(feat) && !already) req.push({ key: "feat.epic", label: ef, ok: feats.has(normName(ef)), detail: feats.has(normName(ef)) ? "has the feat" : "doesn't have the feat (epic item)", waivable: false });
+        if (ef && normName(ef) !== normName(feat) && !already) req.push({ key: "feat.epic", label: ef, ok: feats.has(normName(ef)), detail: feats.has(normName(ef)) ? t("has the feat") : t("doesn't have the feat (epic item)"), waivable: false });
       }
       const cl = actorInfo.casterLevel(actor);
-      if (p.casterLevel) req.push({ key: "cl", label: `Caster level ${p.casterLevel}`, ok: cl >= p.casterLevel, detail: `${cl ? `caster level ${cl}` : "not a spellcaster"}${p.casterNote ? `; ${p.casterNote}` : ""}`, waivable: false });
+      if (p.casterLevel) req.push({ key: "cl", label: t("Caster level {n}", { n: p.casterLevel }), ok: cl >= p.casterLevel, detail: `${cl ? t("caster level {n}", { n: cl }) : t("not a spellcaster")}${p.casterNote ? `; ${p.casterNote}` : ""}`, waivable: false });
       // Spells: one of each group; from the crafter, a helping caster, a scroll or a wand
       const known = actorInfo.spells(actor);
       const seen = new Set();
@@ -248,66 +253,68 @@ const AXECLEFT_CRAFTING_HOST = (() => {
         if (seen.has(key)) continue;
         seen.add(key);
         const i = n++;
-        const label = s.any.length > 1 ? s.any.join(" or ") : s.any[0];
+        // Spell names as this world shows them (Babele: "Bouclier de la foi" for Shield of Faith), when Curios knows the spell
+        const shown = (x) => globalThis.game?.modules?.get?.("axeclefts-curios")?.api?.spells?.shownName?.(x) ?? x;
+        const label = s.any.map(shown).join(t(" or "));
         const mine = s.any.map((x) => ({ x, e: known.get(normName(x)) })).find((o) => o.e);
         const src = values?.[`src.${i}`] ?? "";
         let ok = false, detail;
         if (mine) {
           const e = mine.e[0];
           ok = true;
-          detail = `${e.spontaneous ? "knows" : e.prepared ? `prepared (${e.prepared})` : "in spellbook, not prepared"} ${mine.x}${e.spontaneous || e.prepared ? "" : " — prepare it each day of work"}`;
+          detail = e.spontaneous ? t("knows {spell}", { spell: shown(mine.x) }) : e.prepared ? t("prepared ({n}) {spell}", { n: e.prepared, spell: shown(mine.x) }) : t("in spellbook, not prepared {spell} — prepare it each day of work", { spell: shown(mine.x) });
           if (!e.spontaneous && !e.prepared) ok = "warn";
-        } else if (src === "ally") { ok = true; detail = "a helping caster provides it each day"; }
-        else if (src === "scroll") { ok = true; detail = `a scroll each day of work (${p.days ?? 1} scroll${(p.days ?? 1) > 1 ? "s" : ""})`; }
-        else if (src === "wand") { ok = true; detail = `a wand charge each day of work (${p.days ?? 1} charge${(p.days ?? 1) > 1 ? "s" : ""})`; }
-        else detail = "not known or prepared";
-        req.push({ key: `spell.${i}`, label: `Spell: ${label}`, ok, detail: `${detail}${s.for ? ` (for ${s.for})` : ""}`, waivable: true, source: { index: i, value: mine ? "self" : src, self: !!mine } });
+        } else if (src === "ally") { ok = true; detail = t("a helping caster provides it each day"); }
+        else if (src === "scroll") { ok = true; detail = (p.days ?? 1) > 1 ? t("a scroll each day of work ({n} scrolls)", { n: p.days }) : t("a scroll each day of work (1 scroll)"); }
+        else if (src === "wand") { ok = true; detail = (p.days ?? 1) > 1 ? t("a wand charge each day of work ({n} charges)", { n: p.days }) : t("a wand charge each day of work (1 charge)"); }
+        else detail = t("not known or prepared");
+        req.push({ key: `spell.${i}`, label: t("Spell: {spell}", { spell: label }), ok, detail: `${detail}${s.for ? ` ${t("(for {item})", { item: s.for })}` : ""}`, waivable: true, source: { index: i, value: mine ? "self" : src, self: !!mine } });
       }
       if (p.align) {
         const al = actorInfo.alignment(actor);
         const need = { good: al.ge === "g", evil: al.ge === "e", lawful: al.lc === "l", chaotic: al.lc === "c" };
-        for (const a of [].concat(p.align)) req.push({ key: `align.${a}`, label: `Creator must be ${a}`, ok: !!need[a], detail: need[a] ? "yes" : "no", waivable: true });
+        for (const a of [].concat(p.align)) req.push({ key: `align.${a}`, label: t("Creator must be {alignment}", { alignment: t(a) }), ok: !!need[a], detail: need[a] ? t("yes") : t("no"), waivable: true });
       }
       if (p.cls) for (const c of [].concat(p.cls)) {
         const has = actorInfo.classes(actor).has(normName(c));
-        req.push({ key: `cls.${c}`, label: `Creator must be a ${c}`, ok: has, detail: has ? "yes" : "no", waivable: true });
+        req.push({ key: `cls.${c}`, label: t("Creator must be a {class}", { class: c }), ok: has, detail: has ? t("yes") : t("no"), waivable: true });
       }
       if (p.minLevel) {
         const lv = actorInfo.level(actor);
-        req.push({ key: "level", label: `Creator at least level ${p.minLevel}`, ok: lv >= p.minLevel, detail: `level ${lv}`, waivable: true });
+        req.push({ key: "level", label: t("Creator at least level {n}", { n: p.minLevel }), ok: lv >= p.minLevel, detail: t("level {n}", { n: lv }), waivable: true });
       }
     }
     req.push(...(p.requirements ?? []));
     // Gold and XP
     if (actor) {
       const g = actorInfo.gold(actor);
-      req.push({ key: "gp", label: `${gp(p.gp)} to spend`, ok: g >= p.gp, detail: `has ${gp(g)}`, waivable: false });
+      req.push({ key: "gp", label: t("{gp} to spend", { gp: gp(p.gp) }), ok: g >= p.gp, detail: t("has {gp}", { gp: gp(g) }), waivable: false });
       if (p.xp > 0) {
         const x = actorInfo.xp(actor);
         const left = x.value - p.xp;
         const ok = x.value >= p.xp && (!setting("xpFloor") || left >= x.floor);
-        req.push({ key: "xp", label: `${p.xp.toLocaleString("en-US")} XP to spend`, ok, detail: `has ${x.value.toLocaleString("en-US")} XP${setting("xpFloor") ? `; can spend ${Math.max(0, x.value - x.floor).toLocaleString("en-US")} without losing a level` : ""}`, waivable: false });
+        req.push({ key: "xp", label: t("{n} XP to spend", { n: num(p.xp) }), ok, detail: setting("xpFloor") ? t("has {n} XP; can spend {m} without losing a level", { n: num(x.value), m: num(Math.max(0, x.value - x.floor)) }) : t("has {n} XP", { n: num(x.value) }), waivable: false });
       }
     }
     // Magic item check (house rule): Spellcraft DC 5 + caster level, +5 per missing prerequisite instead of blocking
     if (p.magic && setting("magicChecks") === "spellcraft" && actor) {
       const missing = req.filter((r) => r.waivable && r.ok === false);
-      for (const r of missing) { r.ok = "warn"; r.detail += " — +5 to the Spellcraft DC"; }
+      for (const r of missing) { r.ok = "warn"; r.detail += t(" — +5 to the Spellcraft DC"); }
       const dc = 5 + (p.casterLevel || 1) + 5 * missing.length;
-      p.checks = [{ key: "spellcraft", label: "Spellcraft (house rule)", skill: "spl", dc, magic: true }, ...(p.checks ?? [])];
+      p.checks = [{ key: "spellcraft", label: t("Spellcraft (house rule)"), skill: "spl", dc, magic: true }, ...(p.checks ?? [])];
     }
     // Each check resolved against the crafter's skills
     for (const c of p.checks) {
-      const s = actor ? (c.craft ? actorInfo.craft(actor, c.craft) : actorInfo.skill(actor, c.skill, c.skillLabel ?? (c.skill === "spl" ? "Spellcraft" : c.skill))) : null;
+      const s = actor ? (c.craft ? actorInfo.craft(actor, c.craft) : actorInfo.skill(actor, c.skill, c.skillLabel ?? (c.skill === "spl" ? t("Spellcraft") : c.skill))) : null;
       if (s) { c.rollId = s.rollId; c.skillLabel = s.label; c.mod = s.mod; }
-      if (c.skill === "spl" && s && !s.trained) req.push({ key: "spl", label: "Spellcraft is trained only", ok: false, detail: "no ranks in Spellcraft", waivable: false });
+      if (c.skill === "spl" && s && !s.trained) req.push({ key: "spl", label: t("Spellcraft is trained only"), ok: false, detail: t("no ranks in Spellcraft"), waivable: false });
       if (c.price) {
         // SRD Craft: progress per week = check × DC in silver pieces; estimate with taking 10
         const t10 = Math.max(1, (c.mod ?? 0) + 10) * c.dc;
         c.weeks = round2((c.price * 10) / t10);
       }
     }
-    if (p.alchemy && actor && !actorInfo.casterLevel(actor)) req.push({ key: "alchemy", label: "Craft (alchemy) needs a spellcaster", ok: false, detail: "not a spellcaster", waivable: false });
+    if (p.alchemy && actor && !actorInfo.casterLevel(actor)) req.push({ key: "alchemy", label: t("Craft (alchemy) needs a spellcaster"), ok: false, detail: t("not a spellcaster"), waivable: false });
     p.requirements = req;
     p.ready = req.every((r) => r.ok !== false);
     p.kind = kind.id;
@@ -316,7 +323,7 @@ const AXECLEFT_CRAFTING_HOST = (() => {
 
   async function evaluate(kindId, actor, values) {
     const kind = kindOf(kindId);
-    if (!kind) throw new Error(`Unknown craft kind ${kindId}.`);
+    if (!kind) throw new Error(t("Unknown craft kind {kind}.", { kind: kindId }));
     const plan = await kind.evaluate({ actor, values: values ?? {} });
     return finishPlan(kind, actor, values ?? {}, plan);
   }
@@ -326,17 +333,17 @@ const AXECLEFT_CRAFTING_HOST = (() => {
   /* ------------------------------------------ */
   const mark = (ok) => ok === true ? '<i class="fas fa-check acr-ok"></i>' : ok === "warn" ? '<i class="fas fa-triangle-exclamation acr-warn"></i>' : '<i class="fas fa-xmark acr-no"></i>';
   function timeText(p) {
-    if (p.days) return `${p.days.toLocaleString("en-US")} day${p.days > 1 ? "s" : ""} of work (8 hours a day; ${p.epic ? "epic item: 1 day per 10,000 gp of base price, house rule" : "1 day per 1,000 gp of base price"})`;
+    if (p.days) return t(p.days > 1 ? "{n} days of work (8 hours a day; {rule})" : "{n} day of work (8 hours a day; {rule})", { n: num(p.days), rule: p.epic ? t("epic item: 1 day per 10,000 gp of base price, house rule") : t("1 day per 1,000 gp of base price") });
     const w = (p.checks ?? []).filter((c) => c.weeks).map((c) => c.weeks);
-    if (w.length) return `about ${Math.max(...w).toLocaleString("en-US")} week${Math.max(...w) === 1 ? "" : "s"} (Craft: check × DC in silver pieces each week; estimate with taking 10)`;
+    if (w.length) return t(Math.max(...w) === 1 ? "about {n} week (Craft: check × DC in silver pieces each week; estimate with taking 10)" : "about {n} weeks (Craft: check × DC in silver pieces each week; estimate with taking 10)", { n: num(Math.max(...w)) });
     return "";
   }
   function costLines(p) {
     const lines = [];
-    if (p.magic) lines.push(`Magic supplies ${gp((p.base ?? 0) / 2)} (½ of the ${gp(p.base ?? 0)} base price)`);
-    if (p.itemCost) lines.push(`${esc(p.itemCostLabel ?? "Item cost")} ${gp(p.itemCost)}`);
-    if (p.raw) lines.push(`Raw materials ${gp(p.raw)} (⅓ of the price)`);
-    if (p.componentGp) lines.push(`Spell components ${gp(p.componentGp)}`);
+    if (p.magic) lines.push(esc(t("Magic supplies {gp} (½ of the {base} base price)", { gp: gp((p.base ?? 0) / 2), base: gp(p.base ?? 0) })));
+    if (p.itemCost) lines.push(`${esc(p.itemCostLabel ?? t("Item cost"))} ${gp(p.itemCost)}`);
+    if (p.raw) lines.push(esc(t("Raw materials {gp} (⅓ of the price)", { gp: gp(p.raw) })));
+    if (p.componentGp) lines.push(esc(t("Spell components {gp}", { gp: gp(p.componentGp) })));
     return lines;
   }
   /** The plan as HTML for the window (with spell-source choices) or the chat card. */
@@ -345,19 +352,19 @@ const AXECLEFT_CRAFTING_HOST = (() => {
     const reqs = (p.requirements ?? []).map((r) => {
       let extra = "";
       if (form && r.source && !r.source.self) {
-        extra = ` <select name="craft.src.${r.source.index}" class="acr-src">${opt("", "Not available", values[`src.${r.source.index}`])}${opt("ally", "A helping caster", values[`src.${r.source.index}`])}${opt("scroll", "A scroll", values[`src.${r.source.index}`])}${opt("wand", "A wand", values[`src.${r.source.index}`])}</select>`;
+        extra = ` <select name="craft.src.${r.source.index}" class="acr-src">${opt("", t("Not available"), values[`src.${r.source.index}`])}${opt("ally", t("A helping caster"), values[`src.${r.source.index}`])}${opt("scroll", t("A scroll"), values[`src.${r.source.index}`])}${opt("wand", t("A wand"), values[`src.${r.source.index}`])}</select>`;
       }
       return `<li>${mark(r.ok)} <strong>${esc(r.label)}</strong> <small>${esc(r.detail ?? "")}</small>${extra}</li>`;
     }).join("");
-    const checks = (p.checks ?? []).map((c) => `<li><i class="fas fa-dice-d20"></i> ${esc(c.label)}: ${esc(c.skillLabel ?? "")} DC ${c.dc}${c.mod !== undefined ? ` <small>(modifier ${c.mod >= 0 ? "+" : ""}${c.mod})</small>` : ""}</li>`).join("");
-    const t = timeText(p);
+    const checks = (p.checks ?? []).map((c) => `<li><i class="fas fa-dice-d20"></i> ${esc(c.label)}: ${esc(c.skillLabel ?? "")} ${esc(t("DC {n}", { n: c.dc }))}${c.mod !== undefined ? ` <small>${esc(t("(modifier {mod})", { mod: `${c.mod >= 0 ? "+" : ""}${c.mod}` }))}</small>` : ""}</li>`).join("");
+    const time = timeText(p);
     return `<div class="acr-plan">
-      <div class="acr-name"><strong>${esc(p.name ?? "")}</strong>${p.quantity > 1 ? ` (${p.quantity})` : ""}${p.market ? ` — market price ${gp(p.market)}` : ""}</div>
+      <div class="acr-name"><strong>${esc(p.name ?? "")}</strong>${p.quantity > 1 ? ` (${p.quantity})` : ""}${p.market ? ` — ${esc(t("market price {gp}", { gp: gp(p.market) }))}` : ""}</div>
       ${p.summary ? `<div class="acr-sum">${esc(p.summary)}</div>` : ""}
-      <div class="acr-costs"><strong>Cost:</strong> ${gp(p.gp ?? 0)}${p.xp ? ` and ${p.xp.toLocaleString("en-US")} XP` : ""}${costLines(p).length ? `<br><small>${costLines(p).join("; ")}</small>` : ""}</div>
-      ${t ? `<div class="acr-time"><i class="fas fa-hourglass-half"></i> <strong>Time:</strong> ${esc(t)}</div>` : ""}
+      <div class="acr-costs"><strong>${esc(t("Cost:"))}</strong> ${p.xp ? esc(t("{gp} and {n} XP", { gp: gp(p.gp ?? 0), n: num(p.xp) })) : gp(p.gp ?? 0)}${costLines(p).length ? `<br><small>${costLines(p).join("; ")}</small>` : ""}</div>
+      ${time ? `<div class="acr-time"><i class="fas fa-hourglass-half"></i> <strong>${esc(t("Time:"))}</strong> ${esc(time)}</div>` : ""}
       ${reqs ? `<ul class="acr-reqs">${reqs}</ul>` : ""}
-      ${checks ? `<div><strong>Checks (rolled after approval):</strong><ul class="acr-reqs">${checks}</ul></div>` : `<div class="acr-sum">No check: ${p.magic ? "the SRD needs none for a magic item when its prerequisites are met" : "nothing to roll"}.</div>`}
+      ${checks ? `<div><strong>${esc(t("Checks (rolled after approval):"))}</strong><ul class="acr-reqs">${checks}</ul></div>` : `<div class="acr-sum">${esc(p.magic ? t("No check: the SRD needs none for a magic item when its prerequisites are met.") : t("No check: nothing to roll."))}</div>`}
       ${(p.notes ?? []).length ? `<ul class="acr-notes">${p.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}
     </div>`;
   }
@@ -370,43 +377,43 @@ const AXECLEFT_CRAFTING_HOST = (() => {
   async function actorOf(r) { return r?.actorUuid ? await fromUuid(r.actorUuid) : null; }
   const canRoll = (m, actor) => !!actor && (game.user.isGM || (actor.isOwner && m.isAuthor));
 
-  const STATE = { pending: "Waiting for the GM", rolling: "Approved — roll the checks", ruined: "Materials ruined", done: "Finished", failed: "Failed", rejected: "Rejected", abandoned: "Abandoned" };
+  const STATE = { pending: /*t*/"Waiting for the GM", rolling: /*t*/"Approved — roll the checks", ruined: /*t*/"Materials ruined", done: /*t*/"Finished", failed: /*t*/"Failed", rejected: /*t*/"Rejected", abandoned: /*t*/"Abandoned" };
 
   function cardHTML(r) {
     const p = r.plan;
-    const state = `<div class="acr-state acr-${r.state}"><strong>${esc(STATE[r.state] ?? r.state)}</strong>${r.note ? ` — ${esc(r.note)}` : ""}</div>`;
+    const state = `<div class="acr-state acr-${r.state}"><strong>${esc(STATE[r.state] ? t(STATE[r.state]) : r.state)}</strong>${r.note ? ` — ${esc(t(r.note))}` : ""}</div>`;
     const hidden = r.rollMode === "blindroll";
     const results = (p.checks ?? []).map((c) => {
       const res = r.results?.[c.key];
-      if (!res) return `<li>${esc(c.label)}: ${esc(c.skillLabel ?? "")} DC ${c.dc} — not rolled yet</li>`;
-      const word = res.status === "passed" ? "success" : res.status === "retry" ? "failed by 4 or less: no progress, roll again" : res.status === "ruined" ? "failed by 5 or more: half the raw materials ruined" : res.status === "lost" ? "failed by 5 or more: the gp and XP are lost" : res.status === "waiting" ? "rolled — the GM resolves it" : res.status;
-      const weeks = res.status === "passed" && c.price ? ` (${(Math.round((c.price * 10) / Math.max(1, res.total * c.dc) * 100) / 100).toLocaleString("en-US")} weeks at this result)` : "";
-      return `<li ${hidden ? "data-gm-only" : ""}>${esc(c.label)}: ${res.total} vs DC ${c.dc} — ${esc(word)}${weeks}${res.tries > 1 ? ` <small>(try ${res.tries})</small>` : ""}</li>`;
+      if (!res) return `<li>${esc(c.label)}: ${esc(c.skillLabel ?? "")} ${esc(t("DC {n} — not rolled yet", { n: c.dc }))}</li>`;
+      const word = res.status === "passed" ? t("success") : res.status === "retry" ? t("failed by 4 or less: no progress, roll again") : res.status === "ruined" ? t("failed by 5 or more: half the raw materials ruined") : res.status === "lost" ? t("failed by 5 or more: the gp and XP are lost") : res.status === "waiting" ? t("rolled — the GM resolves it") : res.status;
+      const weeks = res.status === "passed" && c.price ? ` ${t("({n} weeks at this result)", { n: num(Math.round((c.price * 10) / Math.max(1, res.total * c.dc) * 100) / 100) })}` : "";
+      return `<li ${hidden ? "data-gm-only" : ""}>${esc(c.label)}: ${esc(t("{total} vs DC {dc}", { total: res.total, dc: c.dc }))} — ${esc(word)}${esc(weeks)}${res.tries > 1 ? ` <small>${esc(t("(try {n})", { n: res.tries }))}</small>` : ""}</li>`;
     }).join("");
-    const paid = r.paid ? `<div class="acr-sum">Spent: ${gp(r.paid.gp ?? 0)}${r.paid.xp ? ` and ${r.paid.xp.toLocaleString("en-US")} XP` : ""}${r.paid.extra ? `; ${gp(r.paid.extra)} more after ruined materials` : ""}.</div>` : "";
+    const paid = r.paid ? `<div class="acr-sum">${esc(t("Spent: {cost}", { cost: r.paid.xp ? t("{gp} and {n} XP", { gp: gp(r.paid.gp ?? 0), n: num(r.paid.xp) }) : gp(r.paid.gp ?? 0) }))}${r.paid.extra ? esc(t("; {gp} more after ruined materials", { gp: gp(r.paid.extra) })) : ""}.</div>` : "";
     const buttons = [];
     if (r.state === "pending") {
-      buttons.push(`<div data-gm-only class="acr-gm"><label>Checks rolled as <select data-roll-mode>${Object.entries(ROLL_MODES).map(([k, l]) => opt(k, l, r.rollMode ?? setting("rollMode"))).join("")}</select></label>
-        <div class="acr-buttons"><button type="button" data-acr="approve"><i class="fas fa-check"></i> Approve</button><button type="button" data-acr="edit"><i class="fas fa-pen"></i> Edit</button><button type="button" data-acr="reject"><i class="fas fa-xmark"></i> Reject</button></div></div>`);
+      buttons.push(`<div data-gm-only class="acr-gm"><label>${esc(t("Checks rolled as"))} <select data-roll-mode>${Object.entries(ROLL_MODES).map(([k, l]) => opt(k, t(l), r.rollMode ?? setting("rollMode"))).join("")}</select></label>
+        <div class="acr-buttons"><button type="button" data-acr="approve"><i class="fas fa-check"></i> ${esc(t("Approve"))}</button><button type="button" data-acr="edit"><i class="fas fa-pen"></i> ${esc(t("Edit"))}</button><button type="button" data-acr="reject"><i class="fas fa-xmark"></i> ${esc(t("Reject"))}</button></div></div>`);
     }
     if (r.state === "rolling") {
       for (const c of p.checks ?? []) {
         const res = r.results?.[c.key];
         if (res && res.status !== "retry") continue;
-        buttons.push(`<button type="button" data-acr="roll" data-check="${esc(c.key)}" data-roller><i class="fas fa-dice-d20"></i> Roll ${esc(c.skillLabel ?? c.label)} (DC ${c.dc})${res ? " again" : ""}</button>`);
+        buttons.push(`<button type="button" data-acr="roll" data-check="${esc(c.key)}" data-roller><i class="fas fa-dice-d20"></i> ${esc(t(res ? "Roll {skill} (DC {dc}) again" : "Roll {skill} (DC {dc})", { skill: c.skillLabel ?? c.label, dc: c.dc }))}</button>`);
       }
-      if (hidden && (p.checks ?? []).some((c) => r.results?.[c.key]?.status === "waiting")) buttons.push(`<button type="button" data-acr="resolve" data-gm-only><i class="fas fa-eye"></i> Resolve the blind rolls</button>`);
+      if (hidden && (p.checks ?? []).some((c) => r.results?.[c.key]?.status === "waiting")) buttons.push(`<button type="button" data-acr="resolve" data-gm-only><i class="fas fa-eye"></i> ${esc(t("Resolve the blind rolls"))}</button>`);
     }
     if (r.state === "ruined") {
-      buttons.push(`<div class="acr-buttons" data-roller><button type="button" data-acr="repay"><i class="fas fa-coins"></i> Pay ${gp(r.repay ?? 0)} and roll again</button><button type="button" data-acr="abandon"><i class="fas fa-ban"></i> Abandon</button></div>`);
+      buttons.push(`<div class="acr-buttons" data-roller><button type="button" data-acr="repay"><i class="fas fa-coins"></i> ${esc(t("Pay {gp} and roll again", { gp: gp(r.repay ?? 0) }))}</button><button type="button" data-acr="abandon"><i class="fas fa-ban"></i> ${esc(t("Abandon"))}</button></div>`);
     }
     return `<div class="axecleft-crafting-card">
-      <h3><i class="fas fa-hammer"></i> Crafting: ${esc(p.name)}</h3>
+      <h3><i class="fas fa-hammer"></i> ${esc(t("Crafting: {name}", { name: p.name }))}</h3>
       <div class="acr-sum">${esc(r.actorName ?? "")}${r.kindLabel ? ` · ${esc(r.kindLabel)}` : ""}</div>
       ${state}
       ${planHTML(p)}
       ${paid}
-      ${results ? `<div><strong>Results:</strong><ul class="acr-reqs">${results}</ul></div>` : ""}
+      ${results ? `<div><strong>${esc(t("Results:"))}</strong><ul class="acr-reqs">${results}</ul></div>` : ""}
       ${buttons.join("")}
     </div>`;
   }
@@ -424,7 +431,7 @@ const AXECLEFT_CRAFTING_HOST = (() => {
     };
     if (message) {
       const old = reqOf(message);
-      Object.assign(r, { userId: old?.userId ?? r.userId, created: old?.created ?? r.created, note: "edited by the GM" });
+      Object.assign(r, { userId: old?.userId ?? r.userId, created: old?.created ?? r.created, note: t("edited by the GM") });
       await saveRequest(message, r);
       return message;
     }
@@ -435,11 +442,11 @@ const AXECLEFT_CRAFTING_HOST = (() => {
   }
 
   async function approveRequest(message, rollMode) {
-    if (!game.user.isGM) return ui.notifications.warn("Only the GM can approve crafting.");
+    if (!game.user.isGM) return ui.notifications.warn(t("Only the GM can approve crafting."));
     const r = foundry.utils.deepClone(reqOf(message));
     if (!r || r.state !== "pending") return;
     const actor = await actorOf(r);
-    if (!actor) return ui.notifications.error("The crafting character no longer exists.");
+    if (!actor) return ui.notifications.error(t("The crafting character no longer exists."));
     // Features the SRD leaves random (an intelligent item's powers) are rolled now, by the GM, and the costs follow
     const kind = kindOf(r.kind);
     if (typeof kind?.beforeApprove === "function") {
@@ -448,7 +455,7 @@ const AXECLEFT_CRAFTING_HOST = (() => {
     }
     const p = r.plan;
     if (actorInfo.gold(actor) < (p.gp ?? 0)) {
-      r.note = `${actor.name} can't pay ${gp(p.gp)} after the rolls; reject or edit the request`;
+      r.note = t("{name} can't pay {gp} after the rolls; reject or edit the request", { name: actor.name, gp: gp(p.gp) });
       await saveRequest(message, r);
       return ui.notifications.error(r.note);
     }
@@ -480,7 +487,7 @@ const AXECLEFT_CRAFTING_HOST = (() => {
       else await actor.deleteEmbeddedDocuments("Item", [c.id]);
     }
     r.state = "done";
-    r.note = `${p.name} is in ${actor.name}'s inventory`;
+    r.note = t("{item} is in {name}'s inventory", { item: p.name, name: actor.name });
     await saveRequest(message, r);
   }
 
@@ -498,17 +505,17 @@ const AXECLEFT_CRAFTING_HOST = (() => {
       if (res?.status === "waiting") res.status = outcome(c, res.total);
     }
     const st = (p.checks ?? []).map((c) => r.results?.[c.key]?.status);
-    if (st.includes("lost")) { r.state = "failed"; r.note = "the Spellcraft check failed by 5 or more; the gp and XP spent are lost"; return saveRequest(message, r); }
+    if (st.includes("lost")) { r.state = "failed"; r.note = t("the Spellcraft check failed by 5 or more; the gp and XP spent are lost"); return saveRequest(message, r); }
     const ruined = (p.checks ?? []).filter((c) => r.results?.[c.key]?.status === "ruined");
     if (ruined.length) {
       r.state = "ruined";
       r.repay = round2(ruined.reduce((s, c) => s + (c.raw ?? (c.price ?? 0) / 3) / 2, 0));
-      r.note = `half the raw materials for ${ruined.map((c) => c.label).join(" and ")} are ruined`;
+      r.note = t("half the raw materials for {checks} are ruined", { checks: ruined.map((c) => c.label).join(t(" and ")) });
       return saveRequest(message, r);
     }
     if (st.every((s) => s === "passed")) return finish(message, r, actor);
     r.state = "rolling";
-    r.note = st.includes("retry") ? "no progress on a check; roll it again" : "";
+    r.note = st.includes("retry") ? t("no progress on a check; roll it again") : "";
     return saveRequest(message, r);
   }
 
@@ -516,21 +523,21 @@ const AXECLEFT_CRAFTING_HOST = (() => {
     const r = foundry.utils.deepClone(reqOf(message));
     const actor = await actorOf(r);
     if (!r || r.state !== "rolling" || !actor) return;
-    if (!canRoll(message, actor)) return ui.notifications.warn("Only the crafter's player (or the GM) can roll this check.");
+    if (!canRoll(message, actor)) return ui.notifications.warn(t("Only the crafter's player (or the GM) can roll this check."));
     const c = (r.plan.checks ?? []).find((x) => x.key === key);
     if (!c) return;
     const roll = await actor.rollSkill(c.rollId ?? (c.craft ? "crf" : c.skill), { target: c.dc, rollMode: r.rollMode });
     const total = Number(roll?.total ?? roll?._total);
     if (!Number.isFinite(total)) return; // dialog closed
     if (!(roll?.dice?.length > 0) && /\b20\b/.test(String(roll?.formula ?? "")) && c.craft) {
-      return ui.notifications.warn("You can't take 20 on a Craft check: failing costs materials. Roll or take 10.");
+      return ui.notifications.warn(t("You can't take 20 on a Craft check: failing costs materials. Roll or take 10."));
     }
     const prev = r.results[key];
     r.results[key] = { total, tries: (prev?.tries ?? 0) + 1, status: "waiting", by: game.user.id };
     const fresh = foundry.utils.deepClone(reqOf(message)) ?? r; // keep other rolls made meanwhile
     fresh.results = { ...(fresh.results ?? {}), [key]: r.results[key] };
     if (fresh.rollMode === "blindroll" && !game.user.isGM) {
-      fresh.note = "rolled blind; the GM resolves the result";
+      fresh.note = t("rolled blind; the GM resolves the result");
       return saveRequest(message, fresh);
     }
     return applyResults(message, fresh, actor);
@@ -562,12 +569,12 @@ const AXECLEFT_CRAFTING_HOST = (() => {
         try { await actor.update(payment(actor, r.repay ?? 0)); } catch (err) { return ui.notifications.error(err.message); }
         r.paid = { ...(r.paid ?? {}), extra: round2((r.paid?.extra ?? 0) + (r.repay ?? 0)) };
         for (const c of r.plan.checks ?? []) if (r.results?.[c.key]?.status === "ruined") r.results[c.key].status = "retry";
-        r.state = "rolling"; r.note = "materials replaced; roll again"; r.repay = 0;
+        r.state = "rolling"; r.note = t("materials replaced; roll again"); r.repay = 0;
         return saveRequest(message, r);
       }
       case "abandon":
         if (!actor || !canRoll(message, actor)) return;
-        r.state = "abandoned"; r.note = "the gp and XP spent are lost";
+        r.state = "abandoned"; r.note = t("the gp and XP spent are lost");
         return saveRequest(message, r);
     }
   }
@@ -631,6 +638,7 @@ const AXECLEFT_CRAFTING_HOST = (() => {
       window: { title: "Crafting", icon: "fas fa-hammer", resizable: true },
       position: { width: 620, height: "auto" },
     };
+    get title() { return t("Crafting"); }
     kindId = recall("kind", null);
     actorId = recall("actor", null);
     values = {};
@@ -648,24 +656,24 @@ const AXECLEFT_CRAFTING_HOST = (() => {
       const actor = this.actor;
       for (const k of list) { try { await k.prepare?.({ actor }); } catch (err) { console.error(`AxecleftCrafting | ${k.id} prepare failed`, err); } }
       const actors = myActors();
-      const nav = `<nav class="acr-tabs">${list.map((k) => `<button type="button" data-kind-btn="${esc(k.id)}" class="${k.id === this.kindId ? "active" : ""}"><i class="${esc(k.icon ?? "fas fa-hammer")}"></i> ${esc(k.label)}</button>`).join("")}</nav>`;
+      const nav = `<nav class="acr-tabs">${list.map((k) => `<button type="button" data-kind-btn="${esc(k.id)}" class="${k.id === this.kindId ? "active" : ""}"><i class="${esc(k.icon ?? "fas fa-hammer")}"></i> ${esc(t(k.label))}</button>`).join("")}</nav>`;
       const sections = list.map((k) => {
         let body = "";
         if (k.id === this.kindId) {
-          try { body = k.content({ actor, values: this.values }) ?? ""; } catch (err) { body = `<p class="hint">This tab failed to load: ${esc(err.message)}</p>`; console.error(`AxecleftCrafting | ${k.id}`, err); }
+          try { body = k.content({ actor, values: this.values }) ?? ""; } catch (err) { body = `<p class="hint">${esc(t("This tab failed to load: {error}", { error: err.message }))}</p>`; console.error(`AxecleftCrafting | ${k.id}`, err); }
         }
         return `<section data-kind="${esc(k.id)}" class="${k.id === this.kindId ? "active" : ""}">${body}</section>`;
       }).join("");
       const gm = game.user.isGM;
       const footer = `<div class="acr-footer">
-        ${this.message ? `<button type="button" data-action-acr="update" class="bright"><i class="fas fa-floppy-disk"></i> Update the request</button>`
-          : `<button type="button" data-action-acr="send" class="bright"><i class="fas fa-paper-plane"></i> ${gm ? "Send for approval" : "Send to the GM"}</button>${gm ? `<button type="button" data-action-acr="craft"><i class="fas fa-hammer"></i> Approve and craft now</button>` : ""}`}
+        ${this.message ? `<button type="button" data-action-acr="update" class="bright"><i class="fas fa-floppy-disk"></i> ${esc(t("Update the request"))}</button>`
+          : `<button type="button" data-action-acr="send" class="bright"><i class="fas fa-paper-plane"></i> ${esc(gm ? t("Send for approval") : t("Send to the GM"))}</button>${gm ? `<button type="button" data-action-acr="craft"><i class="fas fa-hammer"></i> ${esc(t("Approve and craft now"))}</button>` : ""}`}
       </div>`;
       return `${STYLE}<form class="acr" autocomplete="off">
-        <div class="form-group"><label>Crafter</label><select name="acr.actor">${actors.map((a) => opt(a.id, a.name, actor?.id)).join("")}</select></div>
-        ${list.length ? nav : `<p class="hint">No module offers crafting yet.</p>`}${sections}
+        <div class="form-group"><label>${esc(t("Crafter"))}</label><select name="acr.actor">${actors.map((a) => opt(a.id, a.name, actor?.id)).join("")}</select></div>
+        ${list.length ? nav : `<p class="hint">${esc(t("No module offers crafting yet."))}</p>`}${sections}
         <div data-acr="plan"></div>
-        <p class="hint">${gm ? "As GM you can override any requirement: the request card shows what is missing." : "The GM approves the request before anything is spent. The checks are rolled after approval."} Time is shown for the GM; it isn't enforced.</p>
+        <p class="hint">${esc(gm ? t("As GM you can override any requirement: the request card shows what is missing.") : t("The GM approves the request before anything is spent. The checks are rolled after approval."))} ${esc(t("Time is shown for the GM; it isn't enforced."))}</p>
         ${footer}</form>`;
     }
     _replaceHTML(result, content) {
@@ -711,7 +719,7 @@ const AXECLEFT_CRAFTING_HOST = (() => {
       if (!box || !this.kindId) return;
       this.values = this.read(form);
       const actor = this.actor;
-      if (!actor) { box.innerHTML = `<p class="hint">Choose a character to craft.</p>`; return; }
+      if (!actor) { box.innerHTML = `<p class="hint">${esc(t("Choose a character to craft."))}</p>`; return; }
       try {
         this.plan = await evaluate(this.kindId, actor, this.values);
         box.innerHTML = planHTML(this.plan, { form: true, values: this.values });
@@ -724,17 +732,17 @@ const AXECLEFT_CRAFTING_HOST = (() => {
     async #submit(form, action) {
       this.values = this.read(form);
       const actor = this.actor;
-      if (!actor) throw new Error("Choose a character to craft.");
+      if (!actor) throw new Error(t("Choose a character to craft."));
       const plan = await evaluate(this.kindId, actor, this.values);
-      if (!plan.ready && !game.user.isGM) throw new Error("Some requirements aren't met (marked ✘). The GM can still approve them, but ask first.");
+      if (!plan.ready && !game.user.isGM) throw new Error(t("Some requirements aren't met (marked ✘). The GM can still approve them, but ask first."));
       if (action === "update") { await submit({ kindId: this.kindId, actor, values: this.values, plan, message: this.message }); this.message = null; return this.close(); }
       await submit({ kindId: this.kindId, actor, values: this.values, plan, approve: action === "craft" });
-      ui.notifications.info(action === "craft" ? `Crafting ${plan.name}.` : `Request for ${plan.name} sent to the GM.`);
+      ui.notifications.info(action === "craft" ? t("Crafting {item}.", { item: plan.name }) : t("Request for {item} sent to the GM.", { item: plan.name }));
     }
   }
 
   function open({ kindId = null, actor = null, values = null, message = null } = {}) {
-    if (!game.user.isGM && !setting("playersMayCraft")) return ui.notifications.warn("The GM hasn't opened crafting to players.");
+    if (!game.user.isGM && !setting("playersMayCraft")) return ui.notifications.warn(t("The GM hasn't opened crafting to players."));
     if (!(APP instanceof CraftingWindow)) APP = new CraftingWindow();
     api._app = APP;
     if (kindId) APP.kindId = kindId;
@@ -859,36 +867,42 @@ const AXECLEFT_CRAFTING_HOST = (() => {
    */
   /** Help for specific magic arms (1.3): the same line, plus the Cost that separates the masterwork item. */
   function prereqHelpArms(thing) {
-    return `<details class="acr-help"><summary><i class="fas fa-circle-question"></i> How requirements are found (making ${esc(thing)} craftable)</summary>
-      <p>Crafting reads the <strong>SRD construction line</strong> at the end of the item's description, as every SRD specific weapon and armor has:</p>
+    const W = '<i class="fas fa-triangle-exclamation acr-warn"></i>';
+    return `<details class="acr-help"><summary><i class="fas fa-circle-question"></i> ${esc(t("How requirements are found (making {thing} craftable)", { thing: t(thing) }))}</summary>
+      <p>${t("Crafting reads the <strong>SRD construction line</strong> at the end of the item's description, as every SRD specific weapon and armor has:")}</p>
       <blockquote>Moderate evocation; CL 12th; Craft Magic Arms and Armor, scorching ray, and flame blade, flame strike, or fireball; Price 20,715 gp; Cost 10,515 gp + 816 XP.</blockquote>
+      ${nonEnglishNote()}
       <ul>
-        <li><strong>CL 12th;</strong> is needed, followed by a semicolon (<em>Caster Level: 12th;</em> works too). The crafter's caster level must also be at least 3 × the item's enhancement bonus (SRD).</li>
-        <li>The <strong>requirements</strong> follow, separated by commas, up to the next semicolon: the feat, spells (must match your Spell sources; <strong>or</strong> means either), and <em>creator must be good</em> (lawful, chaotic, evil), <em>… ranks in …</em>, <em>… level</em>, <em>creator must be a dwarf</em>. Anything else is listed for the GM (<i class="fas fa-triangle-exclamation acr-warn"></i>).</li>
-        <li><strong>Price</strong> is read too, and used when the compendium's price is missing or wrong.</li>
-        <li><strong>Cost X gp + Y XP</strong> splits the price the SRD way: the XP gives the magic's base price (XP × 25), and the rest of the gp is the masterwork item (and special material) the crafter supplies. Without a Cost, the whole price counts as the magic, a little more than the SRD would charge.</li>
-        <li>The item must be in a compendium the generators read (Item Sources tab, or D35E's Magic Items). Without a construction line it can still be made, but the GM decides what it needs.</li>
+        <li>${t("<strong>CL 12th;</strong> is needed, followed by a semicolon (<em>Caster Level: 12th;</em> works too). The crafter's caster level must also be at least 3 × the item's enhancement bonus (SRD).")}</li>
+        <li>${t("The <strong>requirements</strong> follow, separated by commas, up to the next semicolon: the feat, spells (must match your Spell sources; <strong>or</strong> means either), and <em>creator must be good</em> (lawful, chaotic, evil), <em>… ranks in …</em>, <em>… level</em>, <em>creator must be a dwarf</em>. Anything else is listed for the GM ({icon}).", { icon: W })}</li>
+        <li>${t("<strong>Price</strong> is read too, and used when the compendium's price is missing or wrong.")}</li>
+        <li>${t("<strong>Cost X gp + Y XP</strong> splits the price the SRD way: the XP gives the magic's base price (XP × 25), and the rest of the gp is the masterwork item (and special material) the crafter supplies. Without a Cost, the whole price counts as the magic, a little more than the SRD would charge.")}</li>
+        <li>${t("The item must be in a compendium the generators read (Item Sources tab, or D35E's Magic Items). Without a construction line it can still be made, but the GM decides what it needs.")}</li>
       </ul></details>`;
   }
 
+  /** Worlds not in English: the construction line is read in English (the item's English text when the world's can't be read). */
+  const nonEnglishNote = () => (/^en\b/i.test(globalThis.game?.i18n?.lang ?? "en") ? "" : `<p><em>${t("The construction line is read in English, as in the example. For translated SRD items the modules use the English line; your own items need the line in English.")}</em></p>`);
+
   function prereqHelp(what = "items") {
-    const thing = what === "abilities" ? "a custom special ability (an enhancement item)" : what === "arms" ? "a custom specific weapon, armor or shield" : "a custom ring, rod, staff or wondrous item";
+    const thing = what === "abilities" ? /*t*/"a custom special ability (an enhancement item)" : what === "arms" ? /*t*/"a custom specific weapon, armor or shield" : /*t*/"a custom ring, rod, staff or wondrous item";
     if (what === "arms") return prereqHelpArms(thing);
     const example = what === "abilities"
       ? "Moderate evocation; CL 10th; Craft Magic Arms and Armor, flame blade, flame strike or fireball; Price +1 bonus."
       : "Faint evocation; CL 5th; Craft Wondrous Item, fireball, resist energy or protection from energy; Price 12,000 gp";
-    return `<details class="acr-help"><summary><i class="fas fa-circle-question"></i> How requirements are found (making ${esc(thing)} craftable)</summary>
-      <p>Crafting reads the <strong>SRD construction line</strong> at the end of the item's description, the same line every SRD item has. To make ${esc(thing)} craftable, end its description with one:</p>
+    return `<details class="acr-help"><summary><i class="fas fa-circle-question"></i> ${esc(t("How requirements are found (making {thing} craftable)", { thing: t(thing) }))}</summary>
+      <p>${t("Crafting reads the <strong>SRD construction line</strong> at the end of the item's description, the same line every SRD item has. To make {thing} craftable, end its description with one:", { thing: esc(t(thing)) })}</p>
       <blockquote>${esc(example)}</blockquote>
+      ${nonEnglishNote()}
       <ul>
-        <li><strong>CL 5th;</strong> is needed, followed by a semicolon. <em>Caster Level: 5th;</em> works too, and <em>ML</em> for psionic items. One caster level per version also works: <em>CL 11th (I), 14th (II)</em> picks the one in the item's name.</li>
-        <li>The <strong>requirements</strong> come next, separated by commas, up to the next semicolon. <em>Prerequisites:</em> in front of them is fine.</li>
-        <li><strong>Spells and powers</strong> must match a name in your Spell or Power sources (capitals don't matter; "greater magic fang" finds "Magic Fang, Greater"). <strong>or</strong> between names means either will do.</li>
-        <li><strong>Feats</strong> are found by name: the item creation feats and any feat in a compendium called Feats.</li>
-        <li>Also understood: <em>creator must be good</em> (lawful, chaotic, evil) · <em>creator must have 5 ranks in Jump</em> · <em>creator must be 12th level</em> · <em>creator must be caster level 11th</em> · <em>creator must be an elf</em> · <em>caster level at least three times the bonus</em> (the +N in the item's name).</li>
-        <li>Anything else is listed for the GM to check (<i class="fas fa-triangle-exclamation acr-warn"></i>).</li>
-        <li><strong>Cost 1,250 gp + 5,100 XP</strong> anywhere in the description replaces the usual cost (half the price in gp, 1/25 in XP).</li>
-        <li>${what === "abilities" ? "The ability must be in a compendium chosen as an Enhancements source (Item Sources tab)." : "The item needs a price above 0 and must be in a compendium the generators read (Item Sources tab, or D35E's Magic Items)."} Without a construction line it can still be made, but the GM decides what it needs.</li>
+        <li>${t("<strong>CL 5th;</strong> is needed, followed by a semicolon. <em>Caster Level: 5th;</em> works too, and <em>ML</em> for psionic items. One caster level per version also works: <em>CL 11th (I), 14th (II)</em> picks the one in the item's name.")}</li>
+        <li>${t("The <strong>requirements</strong> come next, separated by commas, up to the next semicolon. <em>Prerequisites:</em> in front of them is fine.")}</li>
+        <li>${t("<strong>Spells and powers</strong> must match a name in your Spell or Power sources (capitals don't matter; \"greater magic fang\" finds \"Magic Fang, Greater\"). <strong>or</strong> between names means either will do.")}</li>
+        <li>${t("<strong>Feats</strong> are found by name: the item creation feats and any feat in a compendium called Feats.")}</li>
+        <li>${t("Also understood: <em>creator must be good</em> (lawful, chaotic, evil) · <em>creator must have 5 ranks in Jump</em> · <em>creator must be 12th level</em> · <em>creator must be caster level 11th</em> · <em>creator must be an elf</em> · <em>caster level at least three times the bonus</em> (the +N in the item's name).")}</li>
+        <li>${t("Anything else is listed for the GM to check ({icon}).", { icon: '<i class="fas fa-triangle-exclamation acr-warn"></i>' })}</li>
+        <li>${t("<strong>Cost 1,250 gp + 5,100 XP</strong> anywhere in the description replaces the usual cost (half the price in gp, 1/25 in XP).")}</li>
+        <li>${esc(what === "abilities" ? t("The ability must be in a compendium chosen as an Enhancements source (Item Sources tab).") : t("The item needs a price above 0 and must be in a compendium the generators read (Item Sources tab, or D35E's Magic Items)."))} ${esc(t("Without a construction line it can still be made, but the GM decides what it needs."))}</li>
       </ul></details>`;
   }
 
@@ -901,8 +915,8 @@ const AXECLEFT_CRAFTING_HOST = (() => {
     _onInit() {
       registerSettings();
       globalThis.AxecleftTools?.register({
-        module: host() ?? "axecleft-crafting", name: "crafting", title: "Crafting", icon: "fas fa-hammer",
-        hint: "Craft items by the SRD: magic items with item creation feats, mundane items with Craft", gmOnly: false,
+        module: host() ?? "axecleft-crafting", name: "crafting", title: /*t*/"Crafting", icon: "fas fa-hammer", // titles are translated by Axecleft's Tools
+        hint: /*t*/"Craft items by the SRD: magic items with item creation feats, mundane items with Craft", gmOnly: false,
         onClick: () => globalThis.AxecleftCrafting.open(),
       });
       Hooks.callAll("axecleftCrafting.ready", globalThis.AxecleftCrafting);

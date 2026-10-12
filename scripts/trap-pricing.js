@@ -11,6 +11,15 @@
  *     The SRD table stops at CR 10; above it the Axecleft extension adds +5 per 3 CR (CR 11–13 35, 14–16 40, 17–19 45, 20 50).
  */
 
+/** Text in the world's language (Axecleft's Tools 8.2 language files: lang/<code>.json), else the English. {placeholders} are filled from data. */
+export const t = (s, d) => globalThis.AxecleftTools?.t?.(s, d) ?? (d ? String(s).replace(/\{(\w+)\}/g, (m, k) => d[k] ?? m) : String(s));
+/** A name or phrase from a pattern, in the world's language (Axecleft's Tools 8.3 grammar); { lang: "en" } for the English one. */
+export const N = (p, s = {}, o = {}) => globalThis.AxecleftTools?.compose?.(p, s, o) ?? String(p).replace(/\{(\w+)[^}]*\}/g, (m, k) => [s[k] ?? ""].flat().map((x) => x?.text ?? x).join(" ")).replace(/\s{2,}/g, " ").trim();
+/** A number in the world's language format. */
+export const fmt = (n) => { const l = globalThis.AxecleftTools?.i18n?.lang; return Number(n).toLocaleString(l && l !== "en" ? l : "en-US"); };
+/** "1,500 gp" in the world's language. */
+export const gp = (n) => t("{n} gp", { n: fmt(Math.round((Number(n) || 0) * 100) / 100) });
+
 /** A compendium index with English names (Axecleft's Tools 8: Babele), display: the shown name. */
 export const enIndex = async (pack, opts = {}) => (globalThis.AxecleftTools?.enIndex ? globalThis.AxecleftTools.enIndex(pack, opts) : [...await pack.getIndex(opts)]);
 /** An item's or actor's English name, else its name. */
@@ -105,8 +114,8 @@ export function trapFacts(actorData, data, { poisonPrices = new Map(), MOD = "tr
     const t = notes.match(/^(\w+(?: \(\w+\))?) Trigger/i);
     if (t) out.trigger = `${t[1].toLowerCase()} trigger`;
   }
-  if (!out.reset) { out.reset = "manual reset"; out.assumptions.push("reset not given: manual reset assumed"); }
-  if (!out.trigger) { out.trigger = "location trigger"; out.assumptions.push("trigger not given: location trigger assumed"); }
+  if (!out.reset) { out.reset = "manual reset"; out.assumptions.push(t("reset not given: manual reset assumed")); }
+  if (!out.trigger) { out.trigger = "location trigger"; out.assumptions.push(t("trigger not given: location trigger assumed")); }
   out.reflex = Number(src.match(/DC (\d+) Reflex/)?.[1]) || null;
   const atk = src.match(/Atk ([+-]\d+)/);
   out.attack = atk ? Number(atk[1]) : null;
@@ -124,48 +133,50 @@ export function trapFacts(actorData, data, { poisonPrices = new Map(), MOD = "tr
 
   // Craft (trapmaking) DC
   out.craftDc = baseCraftDc(cr) + (out.proximity ? 5 : 0) + (out.autoReset ? 5 : 0);
-  out.craftDcNote = `CR ${cr} ${baseCraftDc(cr)}${cr > 10 ? " (Axecleft extension past CR 10)" : ""}${out.proximity ? ", proximity trigger +5" : ""}${out.autoReset ? ", automatic reset +5" : ""}`;
+  out.craftDcNote = `${t("CR {cr} {dc}", { cr, dc: baseCraftDc(cr) })}${cr > 10 ? t(" (Axecleft extension past CR 10)") : ""}${out.proximity ? t(", proximity trigger +5") : ""}${out.autoReset ? t(", automatic reset +5") : ""}`;
 
   // Price: the SRD market price when the trap carries one, else the cost table
   const parts = [];
   let base = 1000;
-  const add = (label, gp) => { if (gp) { base += gp; parts.push([label, gp]); } };
-  if (out.proximity || out.timed) add(out.timed ? "timed trigger" : "proximity trigger", 1000);
-  if (/touch \(attached\)|attached/i.test(out.trigger ?? "")) add("touch trigger (attached)", -100);
-  if (/^no reset|\bno reset/i.test(out.reset ?? "")) add("no reset", -500);
-  else if (/repair/i.test(out.reset ?? "")) add("repair reset", -200);
-  else if (out.autoReset && !out.timed) add("automatic reset", 500);
-  if (/hidden lock/i.test(out.bypass ?? "")) add("hidden lock bypass", 300);
-  else if (/hidden switch/i.test(out.bypass ?? "")) add("hidden switch bypass", 200);
-  else if (/\block\b/i.test(out.bypass ?? "")) add("lock bypass", 100);
-  const dcCost = (label, dc, up = 200) => { if (!dc || dc === 20) return; add(`${label} ${dc}`, dc < 20 ? -100 * (20 - dc) : up * (dc - 20)); };
-  dcCost("Search DC", out.search);
-  dcCost("Disable Device DC", out.disable);
-  dcCost("Reflex save DC", out.reflex, 300);
-  if (out.attack !== null && out.attack !== 10) add(`attack bonus ${out.attack >= 0 ? "+" : ""}${out.attack}`, out.attack < 10 ? -100 * (10 - out.attack) : 200 * (out.attack - 10));
-  if (out.neverMiss) add("never miss", 1000);
+  const add = (label, cost) => { if (cost) { base += cost; parts.push([label, cost]); } }; // labels in the world's language (shown on the crafting card)
+  if (out.proximity || out.timed) add(t(out.timed ? "timed trigger" : "proximity trigger"), 1000);
+  if (/touch \(attached\)|attached/i.test(out.trigger ?? "")) add(t("touch trigger (attached)"), -100);
+  if (/^no reset|\bno reset/i.test(out.reset ?? "")) add(t("no reset"), -500);
+  else if (/repair/i.test(out.reset ?? "")) add(t("repair reset"), -200);
+  else if (out.autoReset && !out.timed) add(t("automatic reset"), 500);
+  if (/hidden lock/i.test(out.bypass ?? "")) add(t("hidden lock bypass"), 300);
+  else if (/hidden switch/i.test(out.bypass ?? "")) add(t("hidden switch bypass"), 200);
+  else if (/\block\b/i.test(out.bypass ?? "")) add(t("lock bypass"), 100);
+  const dcCost = (label, dc, up = 200) => { if (!dc || dc === 20) return; add(t(label, { dc }), dc < 20 ? -100 * (20 - dc) : up * (dc - 20)); };
+  dcCost(/*t*/"Search DC {dc}", out.search);
+  dcCost(/*t*/"Disable Device DC {dc}", out.disable);
+  dcCost(/*t*/"Reflex save DC {dc}", out.reflex, 300);
+  if (out.attack !== null && out.attack !== 10) add(t("attack bonus {n}", { n: `${out.attack >= 0 ? "+" : ""}${out.attack}` }), out.attack < 10 ? -100 * (10 - out.attack) : 200 * (out.attack - 10));
+  if (out.neverMiss) add(t("never miss"), 1000);
   const mech = Math.max(base * Math.max(1, cr), Math.max(1, cr) * 100);
   let extras = 0;
   const extraParts = [];
   for (const p of out.poisons) {
-    const gp = poisonPrices.get(p) ?? [...poisonPrices.entries()].find(([k]) => k.includes(p) || p.includes(k))?.[1] ?? null;
-    if (gp === null) { out.assumptions.push(`no price found for ${p}`); continue; }
-    const cost = gp * (out.autoReset ? 20 : 1);
+    const each = poisonPrices.get(p) ?? [...poisonPrices.entries()].find(([k]) => k.includes(p) || p.includes(k))?.[1] ?? null;
+    if (each === null) { out.assumptions.push(t("no price found for {poison}", { poison: p })); continue; }
+    const cost = each * (out.autoReset ? 20 : 1);
     extras += cost;
-    extraParts.push([`${p}${out.autoReset ? " (×20, automatic reset)" : ""}`, cost]);
+    extraParts.push([`${p}${out.autoReset ? t(" (×20, automatic reset)") : ""}`, cost]);
   }
-  if (out.diseases.length) out.assumptions.push("the SRD gives no price for diseases; none added");
+  if (out.diseases.length) out.assumptions.push(t("the SRD gives no price for diseases; none added"));
   out.formula = { base, parts, mechanical: mech, extras, extraParts, total: mech + extras };
   const market = marketPrice(actorData) ?? srdTrap(actorData, data)?.price ?? null; // the SRD price by English name when the notes are translated
   if (market) {
     // SRD sample traps: the market price is the price; the share for poisons and alchemical items stays an extra cost
     out.price = market;
     out.extras = Math.min(extras, market);
-    out.priceSource = "SRD market price";
+    out.market = true;
+    out.priceSource = t("SRD market price");
   } else {
     out.price = mech + extras;
     out.extras = extras;
-    out.priceSource = "SRD cost table";
+    out.market = false;
+    out.priceSource = t("SRD cost table");
   }
   out.mechanicalPrice = Math.max(0, out.price - out.extras);
   return out;

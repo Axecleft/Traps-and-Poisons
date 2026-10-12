@@ -1,0 +1,46 @@
+{
+ "__about": "Regras gramaticais em português (rascunho para Axecleft's Tools 8.3).",
+ "and": "e",
+ "or": "ou",
+ "comma": ", ",
+ "articles": {
+  "a": {
+   "m": "um",
+   "f": "uma",
+   "mp": "uns",
+   "fp": "umas"
+  },
+  "the": {
+   "m": "o",
+   "f": "a",
+   "mp": "os",
+   "fp": "as"
+  }
+ },
+ "defaultGender": "m",
+ "elision": {
+  "words": [],
+  "before": "",
+  "except": []
+ },
+ "contractions": {
+  "de o": "do",
+  "de a": "da",
+  "de os": "dos",
+  "de as": "das",
+  "em o": "no",
+  "em a": "na",
+  "em os": "nos",
+  "em as": "nas",
+  "a a": "à",
+  "a as": "às",
+  "a o": "ao",
+  "a os": "aos",
+  "por o": "pelo",
+  "por a": "pela",
+  "por os": "pelos",
+  "por as": "pelas"
+ },
+ "capitalize": "first",
+ "words": {}
+}

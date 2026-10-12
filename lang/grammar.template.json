@@ -1,0 +1,53 @@
+{
+ "__about": "Grammar rules for one language. Copy this file to <code>.grammar.json (fr.grammar.json, es.grammar.json, pt-BR.grammar.json…). Lines starting with __ are explanations; leave them. The same file goes in every Axecleft module's lang folder.",
+ "__and": "The word between the last two items of a list: \"A, B and C\".",
+ "and": "and",
+ "__or": "The same for \"A, B or C\".",
+ "or": "or",
+ "__comma": "What separates the other items of a list.",
+ "comma": ", ",
+ "__articles": "Articles, by gender and number of the word they go with: m (masculine), f (feminine), n (neuter), mp / fp / np (plural). {object:a} in a pattern uses \"a\"; {object:the} uses \"the\".",
+ "articles": {
+  "a": {
+   "m": "",
+   "f": "",
+   "mp": "",
+   "fp": ""
+  },
+  "the": {
+   "m": "",
+   "f": "",
+   "mp": "",
+   "fp": ""
+  }
+ },
+ "__defaultGender": "The gender of a word the files don't know (m or f).",
+ "defaultGender": "m",
+ "__elision": "Words that lose their last letter before a vowel or a silent h (French: de épée → d'épée, le arc → l'arc). before: the letters that cause it; except: words starting with an aspirated h, which don't (de hache stays de hache). Leave words empty if the language has none.",
+ "elision": {
+  "words": [],
+  "before": "aeiouyàâäéèêëîïôöùûüœæh",
+  "except": []
+ },
+ "__contractions": "Pairs of words that merge (French de le → du; Spanish de el → del; Portuguese de o → do).",
+ "contractions": {},
+ "__capitalize": "first: the name starts with a capital letter; none: as the words are written.",
+ "capitalize": "first",
+ "__words": "What the grammar needs to know about some words, keyed by the word as it appears in this language (as Babele or the translation shows it): its gender (g: m or f), plural (pl: true), its forms when it agrees with another word (forms: { m, f, mp, fp }), the text to use instead (as: \"de feu\" for an ability Babele calls \"Feu\"), or the part of a name it moves to (role: \"of\" puts a weapon ability in the {of} part). The word files (next phase) fill most of this; you can add any word here.",
+ "words": {
+  "épée longue": {
+   "g": "f"
+  },
+  "acéré": {
+   "forms": {
+    "f": "acérée",
+    "mp": "acérés",
+    "fp": "acérées"
+   }
+  },
+  "feu": {
+   "as": "de feu",
+   "role": "of"
+  }
+ }
+}

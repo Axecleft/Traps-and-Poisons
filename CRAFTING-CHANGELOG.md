@@ -1,5 +1,13 @@
 # Axecleft's Crafting (shared engine) — changelog
 
+## 1.9
+
+- **Text in the world's language** (Axecleft's Tools 8.2 language files): the Crafting window, requirements, costs, time, request cards and messages, and setting names. The help keeps its English construction-line examples, which is the format the modules read, with a note in worlds not in English.
+
+## 1.8
+
+- **Worlds in other languages**: spell requirements show the spell as the world names it ("Spell: Bouclier de la foi" for Shield of Faith) when Axecleft's Curios knows the spell.
+
 ## 1.7
 
 - **Worlds in other languages**: the crafter's feats, spells and classes are matched by their English names too (Babele's original names, or English names the user gave them), and Craft sub-skills named in French, Spanish or Portuguese are recognized (armes, armures, arcs, alchimie, pièges; armas, armaduras, arcos, alquimia, trampas; armas, armaduras, arcos, alquimia, armadilhas).
