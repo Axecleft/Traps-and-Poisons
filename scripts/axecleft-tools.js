@@ -21,6 +21,15 @@
  *     onClick: () => { ... }                  // what the tool does
  *   });
  *
+ * Foundry v11 to v14 (version 9): AxecleftTools.DialogV2 (wait / confirm), AxecleftTools.AppV2 (a window class) and
+ * AxecleftTools.onChatRender(fn) work the same on every Foundry version: on v13+ they are Foundry's own DialogV2,
+ * ApplicationV2 and renderChatMessageHTML; on v11/v12 small stand-ins built on the classic Dialog and Application.
+ *   AxecleftTools.DialogV2.wait({ window: { title }, content, buttons: [{ action, label, icon, default, callback(event, button) }],
+ *     render(event, dialog), rejectClose })  → the button's callback result (button.form is the dialog's form), or its action.
+ *   class MyWindow extends AxecleftTools.AppV2 { static DEFAULT_OPTIONS = { id, classes, window: { title, icon, resizable },
+ *     position: { width, height } }; async _renderHTML() { return html; } _replaceHTML(html, content) { … } _onRender() { … } }
+ *   this.element is the window's HTML element on every version.
+ *
  * Searchable lists (version 7): AxecleftTools.enhanceDatalists(root) turns every <input list="…"> inside root
  * into a list that scrolls and stays on screen (the browser's own <datalist> popup doesn't scroll in Foundry).
  *
@@ -62,7 +71,7 @@
  *
  * If two modules ship different versions of this file, the newest one wins.
  */
-const AXECLEFT_TOOLS_VERSION = 8.4;
+const AXECLEFT_TOOLS_VERSION = 9.2; // 9.2: the User Guide opens the wiki in Foundry's language (French, Spanish, Portuguese); 9.1: the User Guide button
 
 (() => {
   const LAYER = "axecleftTools";
@@ -499,7 +508,7 @@ const AXECLEFT_TOOLS_VERSION = 8.4;
   }
   async function askEnglishName(item, { force = false } = {}) {
     if (!force && (askOff() || hasEnglish(item))) return;
-    const DV = foundry.applications?.api?.DialogV2;
+    const DV = DialogShim;
     const current = item.flags?.world?.axecleftEn ?? "";
     const listId = `axecleft-en-${item.id}`;
     const content = `<p>${t("What is <strong>{name}</strong> called in English? Axecleft's modules (treasure, merchants, crafting) recognize items by their English name. Optional.", { name: esc(item.name) })}</p>
@@ -553,9 +562,185 @@ const AXECLEFT_TOOLS_VERSION = 8.4;
   }
 
 
+  /* ---------- Foundry v11 to v14 (version 9) ---------- */
+  const V13 = !!globalThis.foundry?.applications?.api?.DialogV2;
+  const escH = (v) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  /** DialogV2.wait / confirm on every version (v11/v12: the classic Dialog). */
+  const DialogShim = {
+    wait(cfg = {}) {
+      if (V13) return foundry.applications.api.DialogV2.wait(cfg);
+      return new Promise((resolve) => {
+        let done = false, dlg = null, pending = false;
+        const finish = (v) => { if (!done) { done = true; resolve(v); } };
+        const buttons = {};
+        let def = null;
+        for (const b of cfg.buttons ?? [{ action: "ok", label: "OK", default: true }]) {
+          if (b.default) def = b.action;
+          buttons[b.action] = {
+            icon: b.icon ? `<i class="${b.icon}"></i>` : "",
+            label: b.label ?? b.action,
+            callback: (html) => {
+              const root = html?.[0] ?? html;
+              const form = root?.querySelector?.("form") ?? root;
+              const button = { form, dataset: { action: b.action }, action: b.action };
+              let v = b.action;
+              try { if (b.callback) { const out = b.callback(new Event("click"), button, dlg); v = out === undefined ? b.action : out; } }
+              catch (err) { console.error("AxecleftTools | dialog button", err); }
+              // Resolve now: the classic Dialog closes right after this callback, and its close must not win with null
+              if (v && typeof v.then === "function") { pending = true; v.then(finish, () => finish(null)); }
+              else finish(v);
+            },
+          };
+        }
+        const title = cfg.window?.title ?? cfg.title ?? "";
+        const DialogClass = typeof Dialog !== "undefined" ? Dialog : globalThis.Dialog;
+        dlg = new DialogClass({ title, content: `<form class="axecleft-dialog" autocomplete="off" onsubmit="event.preventDefault();">${cfg.content ?? ""}</form>`, buttons, default: def ?? Object.keys(buttons)[0],
+          render: (html) => {
+            const root = html?.[0] ?? html;
+            const app = root?.closest?.(".app") ?? root;
+            try { cfg.render?.(new Event("render"), { element: app, form: root?.querySelector?.("form") }); } catch (err) { console.error("AxecleftTools | dialog render", err); }
+          },
+          close: () => { if (!pending) finish(null); } },
+        { classes: ["dialog", ...(cfg.classes ?? [])], width: cfg.position?.width ?? 400, ...(cfg.position?.height ? { height: cfg.position.height } : {}) });
+        dlg.render(true);
+      });
+    },
+    async confirm(cfg = {}) {
+      if (V13) return foundry.applications.api.DialogV2.confirm(cfg);
+      const res = await DialogShim.wait({ ...cfg, buttons: [
+        { action: "yes", label: cfg.yes?.label ?? globalThis.game?.i18n?.localize?.("Yes") ?? "Yes", icon: cfg.yes?.icon ?? "fas fa-check", default: cfg.yes?.default ?? true, callback: () => true },
+        { action: "no", label: cfg.no?.label ?? globalThis.game?.i18n?.localize?.("No") ?? "No", icon: cfg.no?.icon ?? "fas fa-xmark", default: !!cfg.no?.default, callback: () => false }] });
+      return res === true;
+    },
+    async prompt(cfg = {}) {
+      if (V13) return foundry.applications.api.DialogV2.prompt(cfg);
+      const ok = cfg.ok ?? {};
+      return DialogShim.wait({ ...cfg, buttons: [{ action: ok.action ?? "ok", label: ok.label ?? "OK", icon: ok.icon ?? "fas fa-check", default: true, callback: ok.callback }] });
+    },
+  };
+  /**
+   * A window class: Foundry's ApplicationV2 on v13+; on v11/v12 a stand-in with the part our windows use
+   * (DEFAULT_OPTIONS, title, _renderHTML → _replaceHTML(html, content) → _onRender, render, close, setPosition, element, rendered).
+   */
+  let AppV2Base;
+  if (V13) AppV2Base = foundry.applications.api.ApplicationV2;
+  else {
+    // Foundry v11's core classes are global names but not properties of globalThis
+    const Classic = typeof Application !== "undefined" ? Application : globalThis.Application;
+    AppV2Base = class AxecleftAppV2 {
+      static DEFAULT_OPTIONS = {};
+      constructor(options = {}) {
+        const D = this.constructor.DEFAULT_OPTIONS ?? {};
+        this.options = foundry.utils.mergeObject(foundry.utils.deepClone(D), options, { inplace: false });
+        const owner = this, o = this.options;
+        const Inner = class extends Classic {
+          static get defaultOptions() {
+            return foundry.utils.mergeObject(super.defaultOptions, { id: o.id ?? `axecleft-app-${foundry.utils.randomID()}`, classes: ["axecleft-v11", ...(o.classes ?? [])],
+              title: o.window?.title ?? "", resizable: o.window?.resizable ?? false, width: o.position?.width ?? 480, height: o.position?.height ?? "auto", popOut: true, template: null });
+          }
+          get title() { return owner.title ?? super.title; }
+          async _renderInner() {
+            const content = document.createElement("div");
+            content.className = "axecleft-v11-body";
+            const html = await owner._renderHTML?.({}, {});
+            if (owner._replaceHTML) await owner._replaceHTML(html, content, {}); else content.innerHTML = html ?? "";
+            return $(content);
+          }
+          async _render(force, options) {
+            await super._render(force, options);
+            if (this._element) { try { owner._onRender?.({}, options ?? {}); } catch (err) { console.error("AxecleftTools | window render", err); } }
+          }
+          async close(options) { const out = await super.close(options); try { owner._onClose?.(options); } catch (e) { /* closing */ } return out; }
+        };
+        this._app = new Inner();
+      }
+      get title() { return this.options.window?.title ?? ""; }
+      get id() { return this._app.id; }
+      /** The window's HTML element (not a jQuery object), as in ApplicationV2. */
+      get element() { return this._app.element?.[0] ?? null; }
+      get rendered() { return this._app.rendered; }
+      get position() { return this._app.position; }
+      render(force = false, options = {}) {
+        if (force && typeof force === "object") { options = force; force = !!force.force; }
+        this._app.render(force, options);
+        return this;
+      }
+      close(options) { return this._app.close(options); }
+      setPosition(pos = {}) {
+        const p = { ...pos };
+        if (p.height === "auto") { p.height = "auto"; }
+        try { return this._app.setPosition(p); } catch (e) { return null; }
+      }
+      bringToTop() { return this._app.bringToTop?.(); }
+      bringToFront() { return this._app.bringToTop?.(); }
+      minimize() { return this._app.minimize?.(); }
+      maximize() { return this._app.maximize?.(); }
+    };
+  }
+  /**
+   * D35E 2.x (Foundry v11) has no "D35E.ItemUse.preUseItem" hook, which our custom item uses rely on (trap kits,
+   * cognizance crystals, psicrowns, Ioun pearls). There, Item#use is wrapped to call that hook first, the same way:
+   * Hooks.call("D35E.ItemUse.preUseItem", item, actor, hookValues); hookValues.customUse = true skips D35E's own use.
+   */
+  Hooks.once("setup", () => {
+    try {
+      const sys = globalThis.game?.system;
+      if (sys?.id !== "D35E" || !foundry.utils.isNewerVersion("3.0.0", sys.version ?? "0")) return;
+      // D35E 2.x builds each item from a per-type class (CONFIG.Item.documentClasses); wrap use() where it is defined
+      const classes = [CONFIG.Item?.documentClass, ...Object.values(CONFIG.Item?.documentClasses ?? {})].filter(Boolean);
+      const owners = new Set();
+      for (const cls of classes) {
+        let p = cls.prototype;
+        while (p && !Object.prototype.hasOwnProperty.call(p, "use")) p = Object.getPrototypeOf(p);
+        if (p && typeof p.use === "function") owners.add(p);
+      }
+      if (!owners.size) return;
+      for (const proto of owners) {
+        if (proto.use._axecleftPreUse) continue;
+        const original = proto.use;
+        const wrapped = async function (options = {}, tempActor = null, ...rest) {
+          const hookValues = { customUse: false };
+          try { Hooks.call("D35E.ItemUse.preUseItem", this, tempActor ?? this.actor, hookValues); }
+          catch (err) { console.error("AxecleftTools | preUseItem", err); }
+          if (hookValues.customUse) return null;
+          return original.call(this, options, tempActor, ...rest);
+        };
+        wrapped._axecleftPreUse = true;
+        proto.use = wrapped;
+      }
+      console.log("AxecleftTools | D35E 2.x: custom item uses enabled (trap kits, crystals, psicrowns, pearls).");
+    } catch (err) { console.warn("AxecleftTools | could not add the item-use hook", err); }
+  });
+  /** Chat-card buttons: fn(message, htmlElement) after a chat message renders, on every version. */
+  function onChatRender(fn) {
+    // renderChatMessageHTML (an HTML element) from Foundry 13; renderChatMessage (jQuery) before
+    const v = String(globalThis.game?.version ?? globalThis.game?.release?.version ?? "");
+    const modern = v ? Number(v.split(".")[0]) >= 13 : !!globalThis.foundry?.applications?.ux;
+    Hooks.on(modern ? "renderChatMessageHTML" : "renderChatMessage", (m, h) => fn(m, h?.[0] ?? h));
+  }
+  /** v11-only look: dialogs and windows use the v13 class names our styles expect. */
+  if (!V13 && globalThis.document && !document.getElementById("axecleft-v11-css")) {
+    const st = document.createElement("style");
+    st.id = "axecleft-v11-css";
+    st.textContent = `.axecleft-v11 .window-content { overflow-y: auto; }
+      .axecleft-v11-body { display: flex; flex-direction: column; min-height: 0; }
+      .axecleft-dialog .form-group { display: flex; align-items: center; gap: 4px; margin: 4px 0; }
+      .axecleft-tools-menu .dialog-buttons { flex-direction: column; gap: 4px; }
+      .axecleft-tools-menu .dialog-buttons button { justify-content: flex-start; width: 100%; text-align: left; }`;
+    document.head.append(st);
+  }
+
   const api = {
     version: AXECLEFT_TOOLS_VERSION,
     tools,
+    /** Foundry v11 to v14 (version 9): DialogV2 (wait / confirm / prompt), a window class, chat-card rendering. */
+    DialogV2: DialogShim, AppV2: AppV2Base, onChatRender, isV11: !V13,
+    /** Does the game system support intelligent items? (D35E 3.1.0 or later; Foundry v11's D35E 2.4.3 doesn't.) */
+    intelligentItems() {
+      const sys = globalThis.game?.system;
+      if (!sys || sys.id !== "D35E") return false;
+      return !foundry.utils.isNewerVersion("3.1.0", sys.version ?? "0");
+    },
     enhanceDatalists,
     englishNames, enName, enIndex, classEn, enNorm, askEnglishName,
     i18n, t, fmt, loadLanguage, langChain, compose, word, parseWord, GRAMMAR_EN,
@@ -605,8 +790,8 @@ const AXECLEFT_TOOLS_VERSION = 8.4;
       const list = api.available();
       if (!list.length) return ui.notifications.info(t("No Axecleft tools are available."));
       const moduleTitle = (id) => game.modules.get(id)?.title ?? id;
-      list.sort((a, b) => moduleTitle(a.module).localeCompare(moduleTitle(b.module)) || a.title.localeCompare(b.title));
-      const { DialogV2 } = foundry.applications.api;
+      list.sort((a, b) => (a.last ? 1 : 0) - (b.last ? 1 : 0) || moduleTitle(a.module).localeCompare(moduleTitle(b.module)) || a.title.localeCompare(b.title));
+      const DialogV2 = DialogShim;
       const choice = await DialogV2.wait({
         window: { title: t("Axecleft's Tools"), icon: "fas fa-toolbox" },
         classes: ["axecleft-tools-menu"],
@@ -620,7 +805,7 @@ const AXECLEFT_TOOLS_VERSION = 8.4;
         buttons: list.map((t) => ({
           action: `${t.module}.${t.name}`,
           icon: t.icon,
-          label: `${api.t(t.title)} — ${moduleTitle(t.module)}`,
+          label: t.moduleTitle === "" ? api.t(t.title) : `${api.t(t.title)} — ${t.moduleTitle ? api.t(t.moduleTitle) : moduleTitle(t.module)}`,
         })),
       });
       const tool = choice && tools.get(choice);
@@ -635,7 +820,7 @@ const AXECLEFT_TOOLS_VERSION = 8.4;
       const list = api.available();
       if (!list.length) return;
       const moduleTitle = (id) => game.modules.get(id)?.title ?? id;
-      list.sort((a, b) => moduleTitle(a.module).localeCompare(moduleTitle(b.module)) || a.title.localeCompare(b.title));
+      list.sort((a, b) => (a.last ? 1 : 0) - (b.last ? 1 : 0) || moduleTitle(a.module).localeCompare(moduleTitle(b.module)) || a.title.localeCompare(b.title));
       const group = { name: "axecleft", title: t("Axecleft's Tools"), icon: "fas fa-toolbox", layer: "tokens", activeTool: "select", visible: true };
       // Foundry needs a selectable "select" tool in every group; it just keeps token selection active.
       const select = { name: "select", title: t("Select Tokens"), icon: "fas fa-expand", button: false };
@@ -664,6 +849,24 @@ const AXECLEFT_TOOLS_VERSION = 8.4;
   };
 
   globalThis.AxecleftTools = api;
+
+  // The Tool Suite's user guide (9.1): the last button of the menu, for GMs and players.
+  // 9.2: it opens the wiki in Foundry's language when the wiki has that translation, else in English.
+  const GUIDE_WIKI = "https://github.com/Axecleft/Axecleft-s-Tools-Suite/wiki/";
+  const guidePage = () => {
+    const lang = String(game?.i18n?.lang ?? "en").toLowerCase();
+    if (lang === "pt-br") return "pt-BR-Início";
+    if (lang === "pt" || lang.startsWith("pt-")) return "pt-PT-Início";
+    if (lang === "fr" || lang.startsWith("fr-")) return "fr-Accueil";
+    if (lang === "es" || lang.startsWith("es-")) return "es-Inicio";
+    return "Home";
+  };
+  api.guideUrl = () => GUIDE_WIKI + encodeURIComponent(guidePage());
+  api.register({
+    module: "axecleft-tools", name: "user-guide", title: /*t*/"User Guide", hint: /*t*/"The Tool Suite's user guide (wiki), in your web browser",
+    icon: "fas fa-book", gmOnly: false, last: true, moduleTitle: "",
+    onClick: () => { window.open(api.guideUrl(), "_blank", "noopener"); },
+  });
 
   // Foundry v11/v12: register the toolbar group's own (empty) canvas layer before the canvas is built.
   Hooks.once("init", () => {

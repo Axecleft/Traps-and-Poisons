@@ -3,7 +3,7 @@
  *
  * SRD, Designing a Trap / Craft (trapmaking): mechanical traps only. Raw materials cost ⅓ of the trap's price; poisons
  * and alchemical items in it are bought at full price (×20 with an automatic reset). Each week's progress is a
- * Craft (trapmaking) check: check × DC in silver pieces. DC: CR 1–3 20, 4–6 25, 7–10 30 (Axecleft: +5 per 3 CR past 10),
+ * Craft (trapmaking) check: check × DC in silver pieces (or the coin chosen in the Trap kits: crafting progress setting). DC: CR 1–3 20, 4–6 25, 7–10 30 (Axecleft: +5 per 3 CR past 10),
  * +5 for a proximity trigger, +5 for an automatic reset. The result is a Trap Kit in the crafter's inventory.
  *
  * Traps on offer: mechanical trap actors in the chosen Actor compendiums (all by default) and world trap actors the
@@ -18,7 +18,23 @@ const esc = (v) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").
 const opt = (v, label, sel) => `<option value="${esc(v)}"${String(v) === String(sel ?? "") ? " selected" : ""}>${esc(label)}</option>`;
 const H = (s, d) => esc(t(s, d));
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
-const setting = (k) => { try { return game.settings.get(MOD, k); } catch (e) { return KIT_SETTINGS[k]?.default; } };
+const setting = (k) => { try { return game.settings.get(MOD, k); } catch (e) { return KIT_SETTINGS[k]?.default ?? CRAFT_SETTINGS[k]?.default; } };
+
+/**
+ * The coin a week's Craft (trapmaking) progress is counted in (1.14.6.12). SRD: silver (check × DC in sp each week),
+ * which makes costly traps take years; gold makes it 10 times faster, platinum 100 times, copper 10 times slower.
+ */
+export const CRAFT_SETTINGS = {
+  kitProgress: { name: /*t*/"Trap kits: crafting progress", hint: /*t*/"Each week of work on a trap kit makes progress worth the Craft (trapmaking) check × the DC in this coin. SRD: silver pieces. Gold pieces make it 10 times faster, platinum pieces 100 times; copper pieces make it 10 times slower.", type: String, default: "sp",
+    choices: { cp: /*t*/"Copper pieces (10 times slower)", sp: /*t*/"Silver pieces (SRD)", gp: /*t*/"Gold pieces (10 times faster)", pp: /*t*/"Platinum pieces (100 times faster)" } },
+};
+
+/** The tab's note when this world counts trap progress in another coin than the SRD's silver. */
+const COINS = { cp: /*t*/"copper pieces", gp: /*t*/"gold pieces", pp: /*t*/"platinum pieces" };
+function coinNote() {
+  const c = setting("kitProgress");
+  return COINS[c] ? ` ${H("This world counts the progress in {coins} (Trap kits: crafting progress).", { coins: t(COINS[c]) })}` : "";
+}
 
 class TrapCraft {
   constructor() { this.list = null; }
@@ -54,7 +70,7 @@ class TrapCraft {
     const list = this.list ?? [];
     const groups = [...new Set(list.map((x) => x.source))];
     const sel = v.trap ?? list[0]?.key ?? "";
-    return `<p class="hint">${H("Craft (trapmaking), by the SRD: mechanical traps only. Raw materials cost ⅓ of the trap's price; poisons in it are bought at full price (×20 with an automatic reset). Each week's progress is a check (check × DC in silver pieces). The result is a {kit}: use it to set the trap on a scene.", { kit: "{kit}" }).replace("{kit}", `<strong>${H("Trap Kit")}</strong>`)}</p>
+    return `<p class="hint">${H("Craft (trapmaking), by the SRD: mechanical traps only. Raw materials cost ⅓ of the trap's price; poisons in it are bought at full price (×20 with an automatic reset). Each week's progress is a check (check × DC in silver pieces). The result is a {kit}: use it to set the trap on a scene.", { kit: "{kit}" }).replace("{kit}", `<strong>${H("Trap Kit")}</strong>`)}${coinNote()}</p>
       <div class="form-group"><label>${H("Trap")}</label><select name="craft.trap">${list.length ? groups.map((g) => `<optgroup label="${esc(g)}">${list.filter((x) => x.source === g).map((x) => opt(x.key, t("CR {cr}: {name}", { cr: x.cr, name: x.name }), sel)).join("")}</optgroup>`).join("") : opt("", t("No mechanical trap actors found"), "")}</select></div>
       <p class="hint">${H("Traps from the Random Trap Generator are in the GM's world; the GM can show one to a player (Observer permission) to let them craft it.")}</p>`;
   }
@@ -86,13 +102,14 @@ class TrapCraft {
     return {
       magic: false, name: data.name, img: data.img, data, quantity: 1, market: f.price,
       raw: round2(mech / 3), componentGp: round2(f.extras),
-      checks: [{ key: "trap", label: actor.name, craft: "trapmaking", dc: f.craftDc, price: mech, raw: round2(mech / 3) }],
+      checks: [{ key: "trap", label: actor.name, craft: "trapmaking", dc: f.craftDc, price: mech, raw: round2(mech / 3), progress: setting("kitProgress") || "sp" }],
       summary: t("{name} (CR {cr}), {price}; Craft (trapmaking) DC {dc}", { name: actor.name, cr: f.cr, price: gp(f.price), dc: f.craftDc }), requirements: [], notes,
     };
   }
 }
 
 export function registerTrapCrafting() {
+  if (globalThis.Hooks) Hooks.once("init", () => { for (const [k, o] of Object.entries(CRAFT_SETTINGS)) game.settings.register(MOD, k, { scope: "world", config: true, ...o }); });
   const C = globalThis.AxecleftCrafting;
   if (!C?.registerKind) return null;
   const craft = new TrapCraft();

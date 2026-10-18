@@ -1,5 +1,5 @@
 /**
- * Axecleft's Crafting — shared engine, version 1.9.
+ * Axecleft's Crafting — shared engine, version 1.92.
  *
  * Copy this same file into every Axecleft module that makes craftable items (Armory, Curios, Gemstones,
  * Traps, Poisons and Diseases) and list it in module.json "esmodules" after axecleft-tools.js and before the
@@ -34,7 +34,7 @@
  * both the nonepic and the epic creation feat (plan.epicFeat, or the epic version of plan.feat), only while the shared Epic
  * items switch is on; time 1 day per 10,000 gp of base price (Axecleft house rule; reported, not enforced).
  */
-const AXECLEFT_CRAFTING_VERSION = 1.9; // 1.9: text in the world's language (Axecleft's Tools 8.2 language files)
+const AXECLEFT_CRAFTING_VERSION = 1.94; // 1.94: skill bonuses for estimates from D35E's source details (the total the sheet shows); 1.93: a check's progress can be counted in another coin (check.progress: cp, sp, gp or pp; trap kits' setting); 1.92: spell sources include a staff (power stone, dorje, psicrown); 1.9: text in the world's language (Axecleft's Tools 8.2 language files); 1.91: Foundry v11 (Tools 9 window, chat)
 const AXECLEFT_CRAFTING_HOST = (() => {
   try { return decodeURIComponent(new URL(import.meta.url).pathname).match(/\/modules\/([^/]+)\//)?.[1] ?? null; } catch (e) { return null; }
 })();
@@ -158,6 +158,15 @@ const AXECLEFT_CRAFTING_HOST = (() => {
       const c = (p) => (Number(p?.pp) || 0) * 10 + (Number(p?.gp) || 0) + (Number(p?.sp) || 0) / 10 + (Number(p?.cp) || 0) / 100;
       return round2(c(sys(actor).currency) + c(sys(actor).altCurrency));
     },
+    /**
+     * A skill's total bonus as D35E rolls it (1.94): the sum of its source details (ranks, ability, feats, items, buffs),
+     * the same list D35E adds to the d20; system.skills.*.mod alone can miss bonuses the sheet shows.
+     */
+    skillTotal(actor, path, fallback) {
+      const det = actor?.sourceDetails?.[`system.skills.${path}.changeBonus`];
+      if (Array.isArray(det) && det.length) { const n = det.reduce((a, d) => a + (Number(d?.value) || 0), 0); if (Number.isFinite(n)) return n; }
+      return Number(fallback ?? 0) || 0;
+    },
     /** A Craft skill by name ("weaponsmithing"): { rollId, label, mod, trained }. Craft can be used untrained. */
     craft(actor, name) {
       const crf = sys(actor).skills?.crf ?? {};
@@ -166,15 +175,15 @@ const AXECLEFT_CRAFTING_HOST = (() => {
         for (const [id, s] of Object.entries(crf[group] ?? {})) {
           const sn = normName(s?.name);
           if (sn && words.some((w) => sn.includes(w) || w.includes(sn))) {
-            return { rollId: `crf.${group}.${id}`, label: t("Craft ({skill})", { skill: s.name }), mod: Number(s.mod ?? 0) || 0, trained: (Number(s.rank ?? 0) || 0) > 0 };
+            return { rollId: `crf.${group}.${id}`, label: t("Craft ({skill})", { skill: s.name }), mod: actorInfo.skillTotal(actor, `crf.${group}.${id}`, s.mod), trained: (Number(s.rank ?? 0) || 0) > 0 };
           }
         }
       }
-      return { rollId: "crf", label: t("Craft ({skill}), untrained", { skill: t(name) }), mod: Number(crf.mod ?? 0) || 0, trained: false };
+      return { rollId: "crf", label: t("Craft ({skill}), untrained", { skill: t(name) }), mod: actorInfo.skillTotal(actor, "crf", crf.mod), trained: false };
     },
     skill(actor, id, label) {
       const s = sys(actor).skills?.[id] ?? {};
-      return { rollId: id, label, mod: Number(s.mod ?? 0) || 0, trained: (Number(s.rank ?? 0) || 0) > 0, trainedOnly: !!s.rt };
+      return { rollId: id, label, mod: actorInfo.skillTotal(actor, id, s.mod), trained: (Number(s.rank ?? 0) || 0) > 0, trainedOnly: !!s.rt };
     },
   };
 
@@ -211,7 +220,8 @@ const AXECLEFT_CRAFTING_HOST = (() => {
 
   /**
    * Complete a kind's plan: costs (gp, XP), feat, caster level, spells, alignment, gold and XP, and the checks.
-   * values["src.<n>"] says where a missing spell comes from: "ally" | "scroll" | "wand".
+   * values["src.<n>"] says where a missing spell comes from: "ally" | "scroll" | "wand" | "staff" (SRD: the crafter's own spell, a helper,
+   * or a spell completion or spell trigger item: scroll, wand, staff; for powers, a power stone, dorje or psicrown).
    */
   /** SRD epic item creation feats, by their nonepic feat. */
   const EPIC_FEATS = { "craft magic arms and armor": "Craft Epic Magic Arms and Armor", "craft wondrous item": "Craft Epic Wondrous Item", "forge ring": "Forge Epic Ring",
@@ -244,7 +254,7 @@ const AXECLEFT_CRAFTING_HOST = (() => {
       }
       const cl = actorInfo.casterLevel(actor);
       if (p.casterLevel) req.push({ key: "cl", label: t("Caster level {n}", { n: p.casterLevel }), ok: cl >= p.casterLevel, detail: `${cl ? t("caster level {n}", { n: cl }) : t("not a spellcaster")}${p.casterNote ? `; ${p.casterNote}` : ""}`, waivable: false });
-      // Spells: one of each group; from the crafter, a helping caster, a scroll or a wand
+      // Spells: one of each group; from the crafter, a helping caster, a scroll, a wand or a staff (power stone, dorje, psicrown)
       const known = actorInfo.spells(actor);
       const seen = new Set();
       let n = 0;
@@ -267,6 +277,7 @@ const AXECLEFT_CRAFTING_HOST = (() => {
         } else if (src === "ally") { ok = true; detail = t("a helping caster provides it each day"); }
         else if (src === "scroll") { ok = true; detail = (p.days ?? 1) > 1 ? t("a scroll each day of work ({n} scrolls)", { n: p.days }) : t("a scroll each day of work (1 scroll)"); }
         else if (src === "wand") { ok = true; detail = (p.days ?? 1) > 1 ? t("a wand charge each day of work ({n} charges)", { n: p.days }) : t("a wand charge each day of work (1 charge)"); }
+        else if (src === "staff") { ok = true; detail = (p.days ?? 1) > 1 ? t("a staff's charges each day of work ({n} days)", { n: p.days }) : t("a staff's charges each day of work (1 day)"); }
         else detail = t("not known or prepared");
         req.push({ key: `spell.${i}`, label: t("Spell: {spell}", { spell: label }), ok, detail: `${detail}${s.for ? ` ${t("(for {item})", { item: s.for })}` : ""}`, waivable: true, source: { index: i, value: mine ? "self" : src, self: !!mine } });
       }
@@ -309,9 +320,10 @@ const AXECLEFT_CRAFTING_HOST = (() => {
       if (s) { c.rollId = s.rollId; c.skillLabel = s.label; c.mod = s.mod; }
       if (c.skill === "spl" && s && !s.trained) req.push({ key: "spl", label: t("Spellcraft is trained only"), ok: false, detail: t("no ranks in Spellcraft"), waivable: false });
       if (c.price) {
-        // SRD Craft: progress per week = check × DC in silver pieces; estimate with taking 10
+        // SRD Craft: progress per week = check × DC in silver pieces; estimate with taking 10.
+        // check.progress (1.93): count it in another coin instead (cp slower, gp ×10, pp ×100)
         const t10 = Math.max(1, (c.mod ?? 0) + 10) * c.dc;
-        c.weeks = round2((c.price * 10) / t10);
+        c.weeks = round2((c.price * coinsPerGp(c.progress)) / t10);
       }
     }
     if (p.alchemy && actor && !actorInfo.casterLevel(actor)) req.push({ key: "alchemy", label: t("Craft (alchemy) needs a spellcaster"), ok: false, detail: t("not a spellcaster"), waivable: false });
@@ -332,10 +344,17 @@ const AXECLEFT_CRAFTING_HOST = (() => {
   /*  Rendering a plan                          */
   /* ------------------------------------------ */
   const mark = (ok) => ok === true ? '<i class="fas fa-check acr-ok"></i>' : ok === "warn" ? '<i class="fas fa-triangle-exclamation acr-warn"></i>' : '<i class="fas fa-xmark acr-no"></i>';
+  /** How many of a coin make 1 gp (the coin a Craft check's weekly progress is counted in; SRD: silver). */
+  function coinsPerGp(coin) { return { cp: 100, sp: 10, gp: 1, pp: 0.1 }[coin] ?? 10; }
+  const COIN_NAMES = { cp: /*t*/"copper pieces", sp: /*t*/"silver pieces", gp: /*t*/"gold pieces", pp: /*t*/"platinum pieces" };
   function timeText(p) {
     if (p.days) return t(p.days > 1 ? "{n} days of work (8 hours a day; {rule})" : "{n} day of work (8 hours a day; {rule})", { n: num(p.days), rule: p.epic ? t("epic item: 1 day per 10,000 gp of base price, house rule") : t("1 day per 1,000 gp of base price") });
     const w = (p.checks ?? []).filter((c) => c.weeks).map((c) => c.weeks);
-    if (w.length) return t(Math.max(...w) === 1 ? "about {n} week (Craft: check × DC in silver pieces each week; estimate with taking 10)" : "about {n} weeks (Craft: check × DC in silver pieces each week; estimate with taking 10)", { n: num(Math.max(...w)) });
+    if (w.length) {
+      const coin = (p.checks ?? []).find((c) => c.weeks && c.progress && c.progress !== "sp")?.progress;
+      if (coin) return t(Math.max(...w) === 1 ? /*t*/"about {n} week (Craft: check × DC in {coins} each week; estimate with taking 10)" : /*t*/"about {n} weeks (Craft: check × DC in {coins} each week; estimate with taking 10)", { n: num(Math.max(...w)), coins: t(COIN_NAMES[coin] ?? coin) });
+      return t(Math.max(...w) === 1 ? "about {n} week (Craft: check × DC in silver pieces each week; estimate with taking 10)" : "about {n} weeks (Craft: check × DC in silver pieces each week; estimate with taking 10)", { n: num(Math.max(...w)) });
+    }
     return "";
   }
   function costLines(p) {
@@ -352,7 +371,7 @@ const AXECLEFT_CRAFTING_HOST = (() => {
     const reqs = (p.requirements ?? []).map((r) => {
       let extra = "";
       if (form && r.source && !r.source.self) {
-        extra = ` <select name="craft.src.${r.source.index}" class="acr-src">${opt("", t("Not available"), values[`src.${r.source.index}`])}${opt("ally", t("A helping caster"), values[`src.${r.source.index}`])}${opt("scroll", t("A scroll"), values[`src.${r.source.index}`])}${opt("wand", t("A wand"), values[`src.${r.source.index}`])}</select>`;
+        extra = ` <select name="craft.src.${r.source.index}" class="acr-src">${opt("", t("Not available"), values[`src.${r.source.index}`])}${opt("ally", t("A helping caster"), values[`src.${r.source.index}`])}${opt("scroll", t("A scroll or power stone"), values[`src.${r.source.index}`])}${opt("wand", t("A wand or dorje"), values[`src.${r.source.index}`])}${opt("staff", t("A staff or psicrown"), values[`src.${r.source.index}`])}</select>`;
       }
       return `<li>${mark(r.ok)} <strong>${esc(r.label)}</strong> <small>${esc(r.detail ?? "")}</small>${extra}</li>`;
     }).join("");
@@ -387,7 +406,7 @@ const AXECLEFT_CRAFTING_HOST = (() => {
       const res = r.results?.[c.key];
       if (!res) return `<li>${esc(c.label)}: ${esc(c.skillLabel ?? "")} ${esc(t("DC {n} — not rolled yet", { n: c.dc }))}</li>`;
       const word = res.status === "passed" ? t("success") : res.status === "retry" ? t("failed by 4 or less: no progress, roll again") : res.status === "ruined" ? t("failed by 5 or more: half the raw materials ruined") : res.status === "lost" ? t("failed by 5 or more: the gp and XP are lost") : res.status === "waiting" ? t("rolled — the GM resolves it") : res.status;
-      const weeks = res.status === "passed" && c.price ? ` ${t("({n} weeks at this result)", { n: num(Math.round((c.price * 10) / Math.max(1, res.total * c.dc) * 100) / 100) })}` : "";
+      const weeks = res.status === "passed" && c.price ? ` ${t("({n} weeks at this result)", { n: num(Math.round((c.price * coinsPerGp(c.progress)) / Math.max(1, res.total * c.dc) * 100) / 100) })}` : "";
       return `<li ${hidden ? "data-gm-only" : ""}>${esc(c.label)}: ${esc(t("{total} vs DC {dc}", { total: res.total, dc: c.dc }))} — ${esc(word)}${esc(weeks)}${res.tries > 1 ? ` <small>${esc(t("(try {n})", { n: res.tries }))}</small>` : ""}</li>`;
     }).join("");
     const paid = r.paid ? `<div class="acr-sum">${esc(t("Spent: {cost}", { cost: r.paid.xp ? t("{gp} and {n} XP", { gp: gp(r.paid.gp ?? 0), n: num(r.paid.xp) }) : gp(r.paid.gp ?? 0) }))}${r.paid.extra ? esc(t("; {gp} more after ruined materials", { gp: gp(r.paid.extra) })) : ""}.</div>` : "";
@@ -630,7 +649,7 @@ const AXECLEFT_CRAFTING_HOST = (() => {
     .sort((a, b) => a.name.localeCompare(b.name));
 
   let APP = existing?._app ?? null;
-  const AppV2 = globalThis.foundry?.applications?.api?.ApplicationV2 ?? class {};
+  const AppV2 = globalThis.AxecleftTools?.AppV2 ?? globalThis.foundry?.applications?.api?.ApplicationV2 ?? class {};
   class CraftingWindow extends AppV2 {
     static DEFAULT_OPTIONS = {
       id: "axecleft-crafting",
@@ -926,6 +945,6 @@ const AXECLEFT_CRAFTING_HOST = (() => {
 
   if (!existing && globalThis.Hooks) {
     Hooks.once("init", () => globalThis.AxecleftCrafting._onInit());
-    Hooks.on("renderChatMessageHTML", (m, h) => globalThis.AxecleftCrafting._onChat(m, h));
+    globalThis.AxecleftTools?.onChatRender ? globalThis.AxecleftTools.onChatRender((m, h) => globalThis.AxecleftCrafting._onChat(m, h)) : Hooks.on("renderChatMessageHTML", (m, h) => globalThis.AxecleftCrafting._onChat(m, h));
   }
 })();

@@ -1,9 +1,9 @@
 {
   "id": "traps-and-poisons",
   "title": "Axecleft's Traps, Poisons, and Diseases",
-  "version": "1.14.6.8",
+  "version": "1.14.6.18",
   "manifest": "https://github.com/Axecleft/Traps-and-Poisons/releases/latest/download/module.json",
-  "download": "https://github.com/Axecleft/Traps-and-Poisons/releases/download/1.14.6.8/module.zip",
+  "download": "https://github.com/Axecleft/Traps-and-Poisons/releases/download/1.14.6.18/module.zip",
   "url": "https://github.com/Axecleft/Traps-and-Poisons",
   "compatibility": {
     "minimum": "13",
@@ -25,26 +25,26 @@
         "compatibility": {}
       }
     ],
-  "recommends": [
-    {
-      "id": "axeclefts-armory",
-      "type": "module",
-      "manifest": "https://github.com/Axecleft/Armory/releases/latest/download/module.json",
-      "reason": "Magic weapons and armor for treasure, merchants and crafting"
-    },
-    {
-      "id": "axeclefts-curios",
-      "type": "module",
-      "manifest": "https://github.com/Axecleft/Curios/releases/latest/download/module.json",
-      "reason": "Potions, scrolls, wands, rings and wondrous items"
-    },
-    {
-      "id": "axecleft-gemstones",
-      "type": "module",
-      "manifest": "https://github.com/Axecleft/Axeclefts-Gemstones/releases/latest/download/module.json",
-      "reason": "Gems, art objects and jewelry for treasure and merchants"
-    }
-  ]
+    "recommends": [
+      {
+        "id": "axeclefts-armory",
+        "type": "module",
+        "manifest": "https://github.com/Axecleft/Armory/releases/latest/download/module.json",
+        "reason": "Magic weapons and armor for treasure, merchants and crafting"
+      },
+      {
+        "id": "axeclefts-curios",
+        "type": "module",
+        "manifest": "https://github.com/Axecleft/Curios/releases/latest/download/module.json",
+        "reason": "Potions, scrolls, wands, rings and wondrous items"
+      },
+      {
+        "id": "axecleft-gemstones",
+        "type": "module",
+        "manifest": "https://github.com/Axecleft/Axeclefts-Gemstones/releases/latest/download/module.json",
+        "reason": "Gems, art objects and jewelry for treasure and merchants"
+      }
+    ]
   },
   "description": "<p>A collection of traps, poisons, and diseases for use in the Dungeons and Dragons 3.5 SRD system.</p>",
   "authors": [

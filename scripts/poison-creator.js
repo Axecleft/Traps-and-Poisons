@@ -358,7 +358,7 @@ export function buildDocuments(f, { attackBase, consumableBase, packId = CUSTOM_
 /*  Foundry: compendium, templates, creating    */
 /* -------------------------------------------- */
 
-const CC = () => foundry.documents?.collections?.CompendiumCollection ?? globalThis.CompendiumCollection;
+const CC = () => foundry.documents?.collections?.CompendiumCollection ?? (typeof CompendiumCollection !== "undefined" ? CompendiumCollection : globalThis.CompendiumCollection);
 const ItemCls = () => CONFIG.Item.documentClass;
 
 async function customPack({ create = true } = {}) {
@@ -442,7 +442,7 @@ export async function createPoison(f, { templateUuid = null, copyToWorld = true 
   const existing = (d) => [...idx].find((e) => e.name === d.name && e.type === d.type);
   const clash = [attack, consumable].filter(existing);
   if (clash.length) {
-    const ok = await foundry.applications.api.DialogV2.confirm({
+    const ok = await (globalThis.AxecleftTools?.DialogV2 ?? foundry.applications.api.DialogV2).confirm({
       window: { title: t("Replace existing?") },
       content: `<p>${escHtml(t(clash.length === 1 ? "{items} already exists in {pack}. Replace it?" : "{items} already exist in {pack}. Replace them?", { items: "\u0001", pack: CUSTOM_PACK_LABEL })).replace("\u0001", clash.map((d) => `<strong>${escHtml(d.name)}</strong>`).join(escHtml(t(" and "))))}</p>`,
     });
@@ -548,7 +548,7 @@ export async function openPoisonCreator(state = null) {
   let f = state?.form ?? blankForm();
   let extras = f.extras ?? [];
   let templateUuid = state?.templateUuid ?? "";
-  const { DialogV2 } = foundry.applications.api;
+  const DialogV2 = (globalThis.AxecleftTools?.DialogV2 ?? foundry.applications.api.DialogV2);
 
   const wire = (root) => {
     const box = root.querySelector(".tp-pc");

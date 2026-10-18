@@ -1,12 +1,20 @@
 # Axecleft's Crafting (shared engine) — changelog
 
-## 1.9
+## Version 1.94
 
-- **Text in the world's language** (Axecleft's Tools 8.2 language files): the Crafting window, requirements, costs, time, request cards and messages, and setting names. The help keeps its English construction-line examples, which is the format the modules read, with a note in worlds not in English.
+- Time estimates use each skill's full bonus as D35E rolls it (its source details: ranks, ability, feats, items, buffs), the total the character sheet shows, instead of the skill's stored modifier, which can leave bonuses out.
 
-## 1.8
+## Version 1.93
 
-- **Worlds in other languages**: spell requirements show the spell as the world names it ("Spell: Bouclier de la foi" for Shield of Faith) when Axecleft's Curios knows the spell.
+- A Craft check's weekly progress can be counted in another coin than the SRD's silver (copper, gold or platinum pieces). Only trap kits use it, through the Traps setting "Trap kits: crafting progress"; the time estimate and the request card follow it.
+
+## Version 1.92
+
+- Spell sources for crafting follow the SRD's list: the crafter, a helping caster, or a spell completion or spell trigger item: a scroll, a wand, and now a staff (for powers: a power stone, a dorje or a psicrown).
+
+## 1.91
+
+- **Foundry v11**: the Crafting window and its chat cards work on Foundry v11 (with Axecleft's Tools 9).
 
 ## 1.7
 

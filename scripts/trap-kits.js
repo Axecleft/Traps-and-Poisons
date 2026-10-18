@@ -187,6 +187,7 @@ async function carryOut(message) {
     console.error(`${MOD} | trap kit request failed`, err, r);
     r.state = "failed";
     r.result = err.message;
+    ui.notifications?.error(t("Trap kit: {error}", { error: err.message }));
   }
   await saveRequest(message, r);
 }
@@ -288,13 +289,14 @@ async function doPlace(r) {
   if (!(Number(det.findDC) > 1) && kit.search) det.findDC = kit.search;
   if (!(Number(det.disarmDC) > 1) && kit.disable) det.disarmDC = kit.disable;
   const bars = { displayBars: data.prototypeToken?.displayBars || CONST.TOKEN_DISPLAY_MODES.OWNER_HOVER, bar1: { attribute: "details.findDC" }, bar2: { attribute: "details.disarmDC" } };
-  data.prototypeToken = { ...(data.prototypeToken ?? {}), ...bars };
+  data.prototypeToken = { ...(data.prototypeToken ?? {}), ...bars, name: data.name };
   const trap = await CONFIG.Actor.documentClass.create(data);
   // D35E may reset a new actor's token settings: put the bars back if it did
   if (trap.prototypeToken?.bar1?.attribute !== "details.findDC" || trap.prototypeToken?.bar2?.attribute !== "details.disarmDC") await trap.update({ prototypeToken: bars });
   const vis = setting("kitVisibility");
   const td = (await trap.getTokenDocument({ x: r.x, y: r.y, hidden: vis !== "all", actorLink: true })).toObject();
   Object.assign(td, foundry.utils.deepClone(bars));
+  td.name = trap.name; // the trap's own name (a token can carry an older name from the actor it was copied from)
   foundry.utils.setProperty(td, `flags.${MOD}.placed`, {
     by: r.userId, byActor: r.actorUuid, byName: r.actorName, status: "active", seenBy: vis === "marker" ? [r.userId] : [],
     at: Date.now(), cr: kit.cr, price: kit.price, disable: kit.disable ?? trap.system?.details?.disarmDC ?? null,
@@ -313,6 +315,31 @@ async function doPlace(r) {
 /* -------------------------------------------- */
 
 const placedOf = (t) => t?.flags?.[MOD]?.placed ?? null;
+
+/**
+ * 1.14.6.13: a trap the GM puts on a scene by hand (dragged from the Actors sidebar or a compendium) is a placed trap
+ * too, so it gets the same controls as one set from a kit: its status on the token HUD and in Placed Traps, the eye
+ * (which players know about it) and, for mechanical traps, recovery into a kit.
+ */
+async function adoptTrap(token) {
+  if (!game.user?.isGM || !token || placedOf(token) || token.actor?.type !== "trap") return;
+  const d = token.actor.system?.details ?? {};
+  let magic = false;
+  try { magic = !(await facts(token.actor)).mechanical; } catch (e) { magic = false; }
+  await token.setFlag(MOD, "placed", { magic, by: game.user.id, byActor: null, byName: game.user.name, status: "active", seenBy: [], at: Date.now(),
+    cr: Number(d.cr) || null, price: null, disable: Number(d.disarmDC) > 1 ? Number(d.disarmDC) : null, gm: true });
+}
+/** Every hand-placed trap token on a scene (the GM's client, when the scene opens). */
+async function adoptScene(scene) {
+  if (!game.user?.isGM || !scene) return;
+  for (const t of scene.tokens?.contents ?? []) {
+    try {
+      if (!placedOf(t) && t.actor?.type === "trap") await adoptTrap(t);
+      // Hand-placed traps marked before 1.14.6.16: record whether they are magic (magic traps can't be recovered)
+      else if (placedOf(t)?.gm && typeof placedOf(t).magic !== "boolean" && t.actor) await t.setFlag(MOD, "placed", { ...placedOf(t), magic: !(await facts(t.actor)).mechanical });
+    } catch (e) { console.warn("Traps | could not mark a placed trap", e); }
+  }
+}
 const entryOf = (t) => ({ id: t.id, uuid: t.uuid, name: t.name, x: t.x, y: t.y, width: t.width || 1, height: t.height || 1, img: t.texture?.src ?? null, hidden: !!t.hidden, placed: placedOf(t) });
 
 /*
@@ -360,18 +387,38 @@ async function doShare(r) {
 
 /** The character recovering a trap: the only character the user owns, or the one they pick (their selected token's or assigned character first). */
 async function recoveringActor() {
-  const owned = (game.actors?.contents ?? [...(game.actors ?? [])]).filter((a) => a.isOwner && a.type === "character");
-  const first = canvas?.tokens?.controlled?.find((x) => x.actor?.isOwner)?.actor ?? game.user.character ?? null;
+  // The character on the scene first (1.14.6.14): an unlinked token has its own copy of the actor, with its own skills
+  const sceneActors = (canvas?.tokens?.placeables ?? []).filter((x) => x.actor?.isOwner && x.actor.type === "character").map((x) => x.actor);
+  const controlled = canvas?.tokens?.controlled?.find((x) => x.actor?.isOwner)?.actor ?? null;
+  const own = game.user.character ? sceneActors.find((a) => (a.isToken ? a.token?.actorId : a.id) === game.user.character.id) ?? game.user.character : null;
+  const first = controlled ?? own ?? null;
   if (game.user.isGM) return first;
-  const list = [...new Set([first, ...owned].filter(Boolean))];
+  const owned = (game.actors?.contents ?? [...(game.actors ?? [])]).filter((a) => a.isOwner && a.type === "character");
+  // One entry per character: the token's copy when it is on the scene, else the sidebar actor
+  const list = [];
+  const seen = new Set();
+  for (const a of [first, ...sceneActors, ...owned].filter(Boolean)) {
+    const base = a.isToken ? a.token?.actorId : a.id;
+    if (seen.has(base)) continue;
+    seen.add(base);
+    list.push(a);
+  }
   if (list.length <= 1) return list[0] ?? null;
-  const { DialogV2 } = foundry.applications.api;
-  const id = await DialogV2.wait({
+  const DialogV2 = (globalThis.AxecleftTools?.DialogV2 ?? foundry.applications.api.DialogV2);
+  const pick = await DialogV2.wait({
     window: { title: t("Who recovers the trap?"), icon: "fas fa-box" }, rejectClose: false,
-    content: `<div class="form-group"><label>${H("Character")}</label><select name="who">${list.map((a) => `<option value="${a.id}">${esc(a.name)}</option>`).join("")}</select></div>`,
+    content: `<div class="form-group"><label>${H("Character")}</label><select name="who">${list.map((a, i) => `<option value="${i}">${esc(a.name)}</option>`).join("")}</select></div>`,
     buttons: [{ action: "ok", label: t("Recover"), icon: "fas fa-box", default: true, callback: (ev, button) => button.form.elements.who.value }, { action: "cancel", label: t("Cancel") }],
   });
-  return id && id !== "cancel" ? game.actors.get(id) : null;
+  return pick != null && pick !== "cancel" ? list[Number(pick)] ?? null : null;
+}
+
+/** Is a placed trap magic? (the flag set when it was placed; else worked out from its actor) */
+async function isMagicPlaced(tokenDoc, p) {
+  if (typeof p?.magic === "boolean") return p.magic;
+  const actor = tokenDoc?.actor ?? (tokenDoc?.uuid ? (await fromUuid(tokenDoc.uuid))?.actor : null);
+  if (!actor) return false;
+  try { return !(await facts(actor)).mechanical; } catch (e) { return false; }
 }
 
 /** Try to pack a placed trap back into a kit. entry: from placedTraps() (or a trap token). */
@@ -381,16 +428,33 @@ export async function recover(entry) {
   if (!p) return;
   if (!setting("kitRecovery")) return ui.notifications.warn(t("The GM doesn't allow placed traps to be recovered."));
   if (p.status !== "active") return ui.notifications.warn(t("{trap} is {status}; only active traps can be recovered.", { trap: tokenDoc.name, status: statusName(p.status).toLowerCase() }));
+  // Only mechanical traps go back into a kit (1.14.6.16): a magic trap is a spell, not parts to pack up
+  if (await isMagicPlaced(tokenDoc, p)) return ui.notifications.warn(t("{trap} is a magic trap; only mechanical traps can be packed back into a kit (disable it with Disable Device instead).", { trap: tokenDoc.name }));
   const actor = await recoveringActor();
   if (!actor) return ui.notifications.warn(t("You have no character to recover the trap with."));
   const dev = actor.system?.skills?.dev ?? {};
   if (!((Number(dev.rank) || 0) > 0)) return ui.notifications.warn(t("{name} has no ranks in Disable Device (trained only).", { name: actor.name }));
   const disable = Number(p.disable) || 20;
   const dc = disable + 5;
-  const roll = await new Roll(`1d20 + ${Number(dev.mod) || 0}`).evaluate();
-  await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor }), flavor: t("Disable Device: recover {trap} (DC {dc})", { trap: tokenDoc.name, dc }) });
+  // D35E's own Disable Device roll (1.14.6.14): every bonus the sheet shows (ranks, ability, feats, items, buffs), and its
+  // dialog for situational modifiers. Taking 20 isn't allowed: failing has a cost.
+  let total = null;
+  if (typeof actor.rollSkill === "function") {
+    try {
+      const roll = await actor.rollSkill("dev", { target: dc });
+      total = Number(roll?.total ?? roll?._total);
+      if (!Number.isFinite(total)) return; // dialog closed
+      if (!(roll?.dice?.length > 0) && /\b20\b/.test(String(roll?.formula ?? ""))) return ui.notifications.warn(t("You can't take 20 to recover a trap: failing can disable or trigger it. Roll or take 10."));
+    } catch (e) { console.warn("Traps | D35E skill roll failed, rolling by hand", e); total = null; }
+  }
+  if (!Number.isFinite(total)) {
+    const bonus = Number((actor.sourceDetails?.["system.skills.dev.changeBonus"] ?? []).reduce((a, d) => a + (Number(d?.value) || 0), 0)) || Number(dev.mod) || 0;
+    const roll = await new Roll(`1d20 + ${bonus}`).evaluate();
+    await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor }), flavor: t("Disable Device: recover {trap} (DC {dc})", { trap: tokenDoc.name, dc }) });
+    total = roll.total;
+  }
   const cr = Number(p.cr) || 1;
-  await postRequest({ type: "recover", tokenUuid: tokenDoc.uuid, actorUuid: actor.uuid, actorName: actor.name, trapName: tokenDoc.name, cr, minutes: cr, total: roll.total, dc });
+  await postRequest({ type: "recover", tokenUuid: tokenDoc.uuid, actorUuid: actor.uuid, actorName: actor.name, trapName: tokenDoc.name, cr, minutes: cr, total, dc });
 }
 
 async function doRecover(r) {
@@ -491,7 +555,7 @@ export async function openMyTraps() {
     const status = gm ? `<select data-status="${x.id}">${Object.keys(STATUS).map((k) => `<option value="${k}"${k === p.status ? " selected" : ""}>${esc(statusName(k))}</option>`).join("")}</select>`
       : `<i class="${STATUS_ICON[p.status] ?? ""}"></i> ${esc(statusName(p.status))}`;
     const canShare = !gm && setting("kitVisibility") === "marker" && ((p.seenBy ?? []).includes(game.user.id)) && players.length;
-    const canRecover = setting("kitRecovery") && p.status === "active" && !gm;
+    const canRecover = setting("kitRecovery") && p.status === "active" && !gm && p.magic !== true;
     return `<tr><td>${esc(x.name)}${targeted.has(x.id) ? ` <i class="fas fa-crosshairs" title="${H("Targeted")}"></i>` : ""}</td><td>${p.cr ?? "?"}</td><td>${by}</td><td>${status}</td><td style="white-space:nowrap">
       ${canShare ? `<button type="button" data-share="${x.id}" title="${H("Show its marker to other players")}"><i class="fas fa-share-nodes"></i></button>` : ""}
       ${canRecover ? `<button type="button" data-recover="${x.id}" title="${H("Pack it back into a kit (Disable Device DC {dc})", { dc: (Number(p.disable) || 20) + 5 })}"><i class="fas fa-box"></i></button>` : ""}
@@ -507,7 +571,7 @@ export async function openMyTraps() {
     ${shareBox}
     ${knownBox}
     ${!gm && setting("kitRecovery") ? `<p class="hint">${H("Recovering: press the box next to the trap (you'll be asked which character if you have more than one). It takes 1 minute per CR and a Disable Device check against its Disable Device DC + 5. A trap you can see can also be targeted (T) to list it here.")}</p>` : ""}`;
-  const { DialogV2 } = foundry.applications.api;
+  const DialogV2 = (globalThis.AxecleftTools?.DialogV2 ?? foundry.applications.api.DialogV2);
   let shareFor = null;
   await DialogV2.wait({
     window: { title: t(gm ? "Placed Traps" : "My Traps"), icon: "fas fa-dungeon" },
@@ -597,10 +661,12 @@ export function registerKits() {
     useKit(item, actor ?? item.actor);
   });
   Hooks.on("createChatMessage", (m) => onCreateMessage(m));
-  Hooks.on("renderChatMessageHTML", (m, h) => onRenderMessage(m, h));
+  globalThis.AxecleftTools?.onChatRender ? globalThis.AxecleftTools.onChatRender((m, h) => onRenderMessage(m, h)) : Hooks.on("renderChatMessageHTML", (m, h) => onRenderMessage(m, h));
   Hooks.on("deleteToken", (t) => onDeleteToken(t));
   Hooks.on("renderTokenHUD", (hud, html) => onTokenHud(hud, html));
-  Hooks.on("canvasReady", () => scheduleMarkers());
+  Hooks.on("canvasReady", () => { scheduleMarkers(); adoptScene(canvas?.scene).catch(() => {}); });
+  // A trap token the GM places by hand becomes a placed trap (status, sharing, recovery)
+  Hooks.on("createToken", (t, opts, userId) => { if (userId === game.user?.id && !placedOf(t)) adoptTrap(t).catch((e) => console.warn("Traps |", e)); });
   for (const h of ["createToken", "updateToken", "deleteToken"]) Hooks.on(h, (t) => { if (placedOf(t)) { syncRegistry(t.parent); scheduleMarkers(); } });
   Hooks.on("updateScene", (scene, change) => { if (change?.flags?.[MOD] && scene.id === canvas?.scene?.id) scheduleMarkers(); });
   Hooks.once("ready", () => { for (const sc of game.scenes ?? []) if (sc.tokens.some((t) => placedOf(t)) || sc.flags?.[MOD]?.traps) syncRegistry(sc); });

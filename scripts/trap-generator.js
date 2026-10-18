@@ -224,7 +224,7 @@ async function openCustomizer(opts) {
     ui.notifications.info(t("{trap} is an SRD sample trap with fixed stats, so it can't be customized. Generating it as-is.", { trap: T.n }));
     return generate(opts);
   }
-  const { DialogV2 } = foundry.applications.api;
+  const DialogV2 = (globalThis.AxecleftTools?.DialogV2 ?? foundry.applications.api.DialogV2);
   const toggle = (root) => {
     root.querySelectorAll("select.tp-alt-select").forEach((sel) => {
       const apply = () => root.querySelectorAll(`.tp-alt[data-group="${sel.dataset.group}"]`).forEach((div) =>
@@ -629,7 +629,7 @@ export async function openGenerator() {
     cr.addEventListener("change", update); srd.addEventListener("change", update); rules.addEventListener("change", update);
   };
 
-  const { DialogV2 } = foundry.applications.api;
+  const DialogV2 = (globalThis.AxecleftTools?.DialogV2 ?? foundry.applications.api.DialogV2);
   const result = await DialogV2.wait({
     window: { title: t("Random Trap Generator"), icon: "fas fa-dice-d20" },
     content,
@@ -725,7 +725,7 @@ if (globalThis.Hooks) {
     const mod = game.modules.get(MOD);
     if (mod) mod.api = { ...(mod.api ?? {}), openGenerator, generate, chatContent, rollTrap: async (cr, o) => (await loadData(), rollTrap(cr, o)), parseTrap, createTrapActor };
   });
-  Hooks.on("renderChatMessageHTML", activateChatButtons);
+  globalThis.AxecleftTools?.onChatRender ? globalThis.AxecleftTools.onChatRender(activateChatButtons) : Hooks.on("renderChatMessageHTML", activateChatButtons);
   if (globalThis.AxecleftTools) {
     // Shared "Axecleft's Tools" menu in D35E's Game Master Tools (see scripts/axecleft-tools.js)
     globalThis.AxecleftTools.register({

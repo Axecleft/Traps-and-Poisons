@@ -3,6 +3,51 @@ A collection of Traps, Poisons, and Diseases from the Dungeons and Dragons 3.5 S
 
 Changelog:
 
+v1.14.6.18:
+
+- Ships Axecleft's Tools 9.2: the User Guide button opens the Tool Suite's wiki in Foundry's language: French, Spanish, Brazilian Portuguese or European Portuguese when you play in one of them, English otherwise.
+
+v1.14.6.17:
+
+- Ships Axecleft's Tools 9.1: a User Guide button at the end of the Axecleft's Tools toolbar group (and menu), for GMs and players. It opens the Tool Suite's wiki (https://github.com/Axecleft/Axecleft-s-Tools-Suite/wiki/Home) in your web browser.
+
+v1.14.6.16:
+
+- Only mechanical traps can be recovered into a kit. A magic trap (Acid Arrow Trap, Fire Trap…) no longer offers recovery in My Traps, and trying is refused with a message before any roll. Before, the roll was made and approved, then nothing happened.
+- A trap kit request that fails now says why in a notification, as well as on its chat card.
+- Hand-placed traps record whether they are magic when they are placed; ones placed before this version are checked when the GM opens the scene.
+
+v1.14.6.15:
+
+- Recovering a trap uses the character's token on the scene when it isn't linked to its actor: an unlinked token has its own copy of the character, with its own skills and inventory, so its Disable Device bonus is used and the kit goes into its inventory. With several characters, the choice keeps the token copy.
+
+v1.14.6.14:
+
+- Recovering a trap now rolls Disable Device with D35E's own skill roll, so every bonus on the character sheet counts (feats, items, buffs, not only ranks and ability), with D35E's roll dialog for situational modifiers. Taking 20 isn't allowed: failing can disable or trigger the trap.
+- Ships the Crafting engine 1.94.
+
+v1.14.6.13:
+
+- A trap the GM puts on a scene by hand (dragged from the Actors sidebar or a compendium) is now a placed trap, like one set from a trap kit: its status button on the token HUD, the Placed Traps window (status, the eye for which players know about it, show on the scene), and recovery into a kit for mechanical traps. Trap tokens already on a scene are picked up when the GM opens the scene.
+
+v1.14.6.12:
+
+- New setting, "Trap kits: crafting progress": the coin each week's Craft (trapmaking) progress is counted in. Silver pieces (SRD, the default); copper pieces (10 times slower); gold pieces (10 times faster); platinum pieces (100 times faster). The SRD's silver makes costly traps take years: a Wide-Mouth Spiked Pit Trap (7,200 gp, DC 25) takes 288 weeks for a crafter whose check is 10.
+- Ships the Crafting engine 1.93.
+
+v1.14.6.11:
+
+- Ships Crafting 1.92: a staff (or, for powers, a psicrown) can supply a spell for crafting; scrolls and wands name their psionic equivalents (power stone, dorje).
+
+v1.14.6.10:
+
+- A trap placed from a trap kit always shows the trap's own name (in My Traps, on the scene marker and on chat cards); before, its token could keep an older name from the actor it was copied from.
+- Ships Axecleft's Tools 9.0, Crafting 1.91: the same scripts now run on Foundry v11 too (the Foundry v11 build of this module is 1.11 instead of 1.14). On v11, windows and dialogs use Foundry's classic ones; nothing changes on v13/v14.
+
+v1.14.6.9:
+
+- French draft, second pass: Gigalad's terminology corrections are applied (weapon and armor abilities, bane foes, metamagic words, item grades Faible/Puissant, Pierre psionique, Biens précieux, Token, Améliorer, Objet spécial, Grimoire).
+
 v1.14.6.8:
 
 - French draft: lang/fr.json (buttons, menus, hints, messages and name patterns) are filled in, and languages.json now lists fr, so worlds set to French show this module in French. A first draft for Gigalad to correct; English worlds are unchanged.
