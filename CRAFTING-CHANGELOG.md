@@ -1,5 +1,9 @@
 # Axecleft's Crafting (shared engine) — changelog
 
+## Version 1.95
+
+- Number boxes in the Crafting window show their value against the right edge.
+
 ## Version 1.94
 
 - Time estimates use each skill's full bonus as D35E rolls it (its source details: ranks, ability, feats, items, buffs), the total the character sheet shows, instead of the skill's stored modifier, which can leave bonuses out.

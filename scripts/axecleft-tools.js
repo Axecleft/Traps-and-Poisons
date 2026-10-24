@@ -71,7 +71,7 @@
  *
  * If two modules ship different versions of this file, the newest one wins.
  */
-const AXECLEFT_TOOLS_VERSION = 9.2; // 9.2: the User Guide opens the wiki in Foundry's language (French, Spanish, Portuguese); 9.1: the User Guide button
+const AXECLEFT_TOOLS_VERSION = 9.3; // 9.3: Support on Patreon and Join the Discord (buttons in each module's settings and in the menu); 9.2: the User Guide opens the wiki in Foundry's language (French, Spanish, Portuguese); 9.1: the User Guide button
 
 (() => {
   const LAYER = "axecleftTools";
@@ -867,6 +867,56 @@ const AXECLEFT_TOOLS_VERSION = 9.2; // 9.2: the User Guide opens the wiki in Fou
     icon: "fas fa-book", gmOnly: false, last: true, moduleTitle: "",
     onClick: () => { window.open(api.guideUrl(), "_blank", "noopener"); },
   });
+
+  // 9.3: Support on Patreon. A "Support on Patreon" button in each active Axecleft module's
+  // Configure Settings section, and one in the Axecleft's Tools menu for the GM. Both open the page in the browser.
+  const PATREON_URL = "https://www.patreon.com/Axecleft";
+  api.patreonUrl = PATREON_URL;
+  api.openPatreon = () => { window.open(PATREON_URL, "_blank", "noopener"); };
+  api.register({
+    module: "axecleft-tools", name: "patreon", title: /*t*/"Support on Patreon", hint: /*t*/"Support the Tool Suite on Patreon, in your web browser",
+    icon: "fab fa-patreon", gmOnly: true, last: true, moduleTitle: "",
+    onClick: () => api.openPatreon(),
+  });
+  // Join the Discord (9.3): the Tool Suite's Discord server, for help, news and ideas; in the menu for everyone.
+  const DISCORD_URL = "https://discord.gg/FRhPPwDWta";
+  api.discordUrl = DISCORD_URL;
+  api.openDiscord = () => { window.open(DISCORD_URL, "_blank", "noopener"); };
+  api.register({
+    module: "axecleft-tools", name: "discord", title: /*t*/"Join the Discord", hint: /*t*/"The Tool Suite's Discord server, for help, news and ideas, in your web browser",
+    icon: "fab fa-discord", gmOnly: false, last: true, moduleTitle: "",
+    onClick: () => api.openDiscord(),
+  });
+  /** Add the Join the Discord and Support on Patreon buttons to the settings of every active Axecleft module (called once, at init;
+   *  registered in English, then the language file translates it like the modules' other settings). */
+  api.registerSupportMenus = () => {
+    const Base = foundry.applications?.api?.ApplicationV2 ?? (typeof FormApplication !== "undefined" ? FormApplication : null);
+    if (!Base) return;
+    // Settings menus open a window; this one opens the Patreon page instead and shows nothing.
+    class AxecleftPatreonLink extends Base {
+      render() { globalThis.AxecleftTools.openPatreon(); return this; }
+    }
+    class AxecleftDiscordLink extends Base {
+      render() { globalThis.AxecleftTools.openDiscord(); return this; }
+    }
+    const menus = [
+      ["discord", { name: /*t*/"Join the Discord", label: /*t*/"Open Discord", hint: /*t*/"Axecleft's Tool Suite Discord server: help, news, ideas and early looks at what comes next.", icon: "fab fa-discord", type: AxecleftDiscordLink }],
+      ["patreon", { name: /*t*/"Support on Patreon", label: /*t*/"Open Patreon", hint: /*t*/"Axecleft's modules are free. Patrons get new releases two weeks early.", icon: "fab fa-patreon", type: AxecleftPatreonLink }],
+    ];
+    for (const id of i18n.modules) {
+      if (!game.modules.get(id)?.active) continue;
+      for (const [key, menu] of menus) {
+        if (game.settings.menus.has(`${id}.${key}`)) continue;
+        try { game.settings.registerMenu(id, key, { ...menu, restricted: false }); }
+        catch (err) { console.warn(`AxecleftTools | Couldn't add the ${key} button to ${id}'s settings`, err); }
+      }
+    }
+  };
+  // Once, whichever version loads first; it always calls the newest API.
+  if (!globalThis.__axecleftSupportMenus) {
+    globalThis.__axecleftSupportMenus = true;
+    Hooks.once("init", () => globalThis.AxecleftTools?.registerSupportMenus?.());
+  }
 
   // Foundry v11/v12: register the toolbar group's own (empty) canvas layer before the canvas is built.
   Hooks.once("init", () => {

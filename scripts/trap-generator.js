@@ -165,6 +165,7 @@ export function customizerContent(cr, T) {
   };
   let html = `<style>
       .tp-custom .tp-slot { width: 5.5em; display: inline-block; margin: 0 2px; }
+      .tp-custom input[type=number] { text-align: right; }
       .tp-custom .tp-line { line-height: 2.2; margin: 2px 0 6px; }
       .tp-custom fieldset { margin: 6px 0; }
       .tp-custom .tp-alt.tp-hidden { display: none; }
@@ -616,7 +617,7 @@ export async function openGenerator() {
   const content = `
     <div class="form-group"><label>${H("Challenge Rating")}</label><select name="cr">${crOpts}</select></div>
     <div class="form-group"><label>${H("Trap")}</label><select name="trap">${trapOptions(1, true)}</select></div>
-    <div class="form-group"><label>${H("How many")}</label><input type="number" name="count" value="1" min="1" max="10" step="1"></div>
+    <div class="form-group"><label>${H("How many")}</label><input type="number" name="count" value="1" min="1" max="10" step="1" style="text-align:right"></div>
     <div class="form-group"><label>${H("Include SRD sample traps")}</label><input type="checkbox" name="includeSrd" checked></div>
     <div class="form-group"><label>${H("Include poison & disease traps")}</label><input type="checkbox" name="includeRules" checked></div>
     <div class="form-group"><label>${H("Create actors")}</label><input type="checkbox" name="createActors" checked></div>

@@ -3,6 +3,15 @@ A collection of Traps, Poisons, and Diseases from the Dungeons and Dragons 3.5 S
 
 Changelog:
 
+v1.14.6.20:
+
+- Ships Axecleft's Tools 9.3: **Support on Patreon**. Configure Settings → Axecleft's Traps, Poisons, and Diseases has a new **Open Patreon** button, and the GM's Axecleft's Tools menu has a **Support on Patreon** button; both open [Axecleft's Patreon](https://www.patreon.com/Axecleft) in your web browser. The modules stay free; patrons get new releases two weeks early. The manifest lists the Patreon page as the author's link.
+- **Join the Discord**: Configure Settings → Axecleft's Traps, Poisons, and Diseases and the Axecleft's Tools menu (for everyone) have a button that opens [Axecleft's Tool Suite Discord server](https://discord.gg/FRhPPwDWta), for help, news and ideas.
+
+v1.14.6.19:
+
+- Number boxes are right-aligned, so a value sits next to the unit after it (Crafting window, Poison and Disease Creator, trap generator; suggested by Gilgalad). Ships the Crafting engine 1.95.
+
 v1.14.6.18:
 
 - Ships Axecleft's Tools 9.2: the User Guide button opens the Tool Suite's wiki in Foundry's language: French, Spanish, Brazilian Portuguese or European Portuguese when you play in one of them, English otherwise.

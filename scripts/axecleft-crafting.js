@@ -34,7 +34,7 @@
  * both the nonepic and the epic creation feat (plan.epicFeat, or the epic version of plan.feat), only while the shared Epic
  * items switch is on; time 1 day per 10,000 gp of base price (Axecleft house rule; reported, not enforced).
  */
-const AXECLEFT_CRAFTING_VERSION = 1.94; // 1.94: skill bonuses for estimates from D35E's source details (the total the sheet shows); 1.93: a check's progress can be counted in another coin (check.progress: cp, sp, gp or pp; trap kits' setting); 1.92: spell sources include a staff (power stone, dorje, psicrown); 1.9: text in the world's language (Axecleft's Tools 8.2 language files); 1.91: Foundry v11 (Tools 9 window, chat)
+const AXECLEFT_CRAFTING_VERSION = 1.95; // 1.95: numbers right-aligned in their boxes; 1.94: skill bonuses for estimates from D35E's source details (the total the sheet shows); 1.93: a check's progress can be counted in another coin (check.progress: cp, sp, gp or pp; trap kits' setting); 1.92: spell sources include a staff (power stone, dorje, psicrown); 1.9: text in the world's language (Axecleft's Tools 8.2 language files); 1.91: Foundry v11 (Tools 9 window, chat)
 const AXECLEFT_CRAFTING_HOST = (() => {
   try { return decodeURIComponent(new URL(import.meta.url).pathname).match(/\/modules\/([^/]+)\//)?.[1] ?? null; } catch (e) { return null; }
 })();
@@ -621,6 +621,7 @@ const AXECLEFT_CRAFTING_HOST = (() => {
   const STYLE = `<style>
     #axecleft-crafting { max-height: calc(100vh - 16px); }
     #axecleft-crafting .window-content { overflow-y: auto; }
+    .acr input[type=number] { text-align: right; }
     .acr nav.acr-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--color-border-light-tertiary, #999); margin-bottom: 8px; flex-wrap: wrap; }
     .acr nav.acr-tabs button { flex: 1 1 auto; border-radius: 4px 4px 0 0; margin: 0; padding: 4px 6px; white-space: nowrap; }
     .acr nav.acr-tabs button.active { font-weight: bold; box-shadow: inset 0 -3px 0 var(--color-warm-1, #c9593f); }

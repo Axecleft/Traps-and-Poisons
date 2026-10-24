@@ -482,6 +482,7 @@ function formHtml(f, groups, templateUuid) {
     `<optgroup label="${escHtml(g.label)}">${g.items.map((i) => `<option value="${i.uuid}" data-kind="${i.kind}"${i.uuid === templateUuid ? " selected" : ""}>${escHtml(i.name)}</option>`).join("")}</optgroup>`).join("");
   return `<style>
       .tp-pc .form-group label { flex: 0 0 9.5em; }
+      .tp-pc input[type=number] { text-align: right; }
       .tp-pc input[name="dc"], .tp-pc input[name="price"] { flex: 0 0 5em; }
       .tp-pc .tp-pc-preview { border: 1px solid var(--color-border-light-tertiary, #999); border-radius: 4px; padding: 4px 8px; margin: 6px 0; font-size: 0.9em; }
       .tp-pc .tp-pc-preview ul { margin: 2px 0 4px 1.2em; padding: 0; }
