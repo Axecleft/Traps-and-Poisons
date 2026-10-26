@@ -3,6 +3,10 @@ A collection of Traps, Poisons, and Diseases from the Dungeons and Dragons 3.5 S
 
 Changelog:
 
+v1.14.6.21:
+
+- Ships Axecleft's Tools 9.6: the **Join the Discord** and **Support on Patreon** buttons are gone from the Axecleft's Tools menu and the module settings. A welcome window opens when Foundry starts, with the links to the Tool Suite's Discord, Patreon and User Guide; it can be turned off for the whole world (GM) or just for you in Configure Settings → any Axecleft module → **Axecleft's Tool Suite**. Also fixes dice formulas that use a function as the number of dice (D35E's Lightning Bolt, `min((@cl),10)d6`), which Foundry 14 refused.
+
 v1.14.6.20:
 
 - Ships Axecleft's Tools 9.3: **Support on Patreon**. Configure Settings → Axecleft's Traps, Poisons, and Diseases has a new **Open Patreon** button, and the GM's Axecleft's Tools menu has a **Support on Patreon** button; both open [Axecleft's Patreon](https://www.patreon.com/Axecleft) in your web browser. The modules stay free; patrons get new releases two weeks early. The manifest lists the Patreon page as the author's link.

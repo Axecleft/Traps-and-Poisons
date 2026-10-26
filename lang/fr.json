@@ -534,5 +534,19 @@
  "Single target": "Cible unique",
  "Two adjacent squares": "Deux cases adjacentes",
  "Water-Filled Room (SRD CR {n})": "Salle inondée (FP {n} du SRD)",
- "{n} ft. deep": "{n} pieds de profondeur"
+ "{n} ft. deep": "{n} pieds de profondeur",
+ "Help, news, ideas and early looks at what comes next.": "Aide, nouvelles, idées et avant-premières de ce qui arrive.",
+ "How each tool works, in your web browser.": "Comment fonctionne chaque outil, dans votre navigateur.",
+ "Thanks for using Axecleft's Tool Suite! Come and say hello, ask for help or suggest an idea on Discord; Patreon keeps the modules free.": "Merci d'utiliser la suite d'outils d'Axecleft ! Venez dire bonjour, demander de l'aide ou proposer une idée sur Discord ; Patreon permet aux modules de rester gratuits.",
+ "Active in this world:": "Actifs dans ce monde :",
+ "Show this when Foundry starts": "Afficher ceci au démarrage de Foundry",
+ "You can change this later: Configure Settings → any Axecleft module → Axecleft's Tool Suite.": "Vous pourrez le changer plus tard : Configurer les paramètres → n'importe quel module d'Axecleft → Suite d'outils d'Axecleft.",
+ "Axecleft's Tool Suite": "Suite d'outils d'Axecleft",
+ "Settings shared by every Axecleft module.": "Paramètres communs à tous les modules d'Axecleft.",
+ "Show the welcome window when Foundry starts (everyone in this world)": "Afficher la fenêtre d'accueil au démarrage de Foundry (tout le monde dans ce monde)",
+ "Show it to me": "Me l'afficher",
+ "The welcome window has the links to the Tool Suite's Discord, Patreon and User Guide.": "La fenêtre d'accueil contient les liens vers le Discord, le Patreon et le guide d'utilisation de la suite.",
+ "Show the welcome window": "Afficher la fenêtre d'accueil",
+ "Tool Suite settings": "Paramètres de la suite",
+ "Settings shared by every Axecleft module (the welcome window), and the links to the Tool Suite's Discord, Patreon and User Guide.": "Paramètres communs à tous les modules d'Axecleft (la fenêtre d'accueil), et les liens vers le Discord, le Patreon et le guide d'utilisation de la suite."
 }

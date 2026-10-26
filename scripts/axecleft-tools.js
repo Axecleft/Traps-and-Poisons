@@ -71,7 +71,7 @@
  *
  * If two modules ship different versions of this file, the newest one wins.
  */
-const AXECLEFT_TOOLS_VERSION = 9.3; // 9.3: Support on Patreon and Join the Discord (buttons in each module's settings and in the menu); 9.2: the User Guide opens the wiki in Foundry's language (French, Spanish, Portuguese); 9.1: the User Guide button
+const AXECLEFT_TOOLS_VERSION = 9.6; // 9.6: the Tool Suite settings button shows in each module's own settings (they all landed in one); 9.5: dice formulas with a function as the number of dice ("min(@cl,10)d6", D35E's Lightning Bolt) work on Foundry v14; 9.4: Join the Discord and Support on Patreon leave the Tools menu and the module settings for a welcome window at startup (turned off in the Tool Suite settings); 9.3: Support on Patreon and Join the Discord (buttons in each module's settings and in the menu); 9.2: the User Guide opens the wiki in Foundry's language (French, Spanish, Portuguese); 9.1: the User Guide button
 
 (() => {
   const LAYER = "axecleftTools";
@@ -868,50 +868,180 @@ const AXECLEFT_TOOLS_VERSION = 9.3; // 9.3: Support on Patreon and Join the Disc
     onClick: () => { window.open(api.guideUrl(), "_blank", "noopener"); },
   });
 
-  // 9.3: Support on Patreon. A "Support on Patreon" button in each active Axecleft module's
-  // Configure Settings section, and one in the Axecleft's Tools menu for the GM. Both open the page in the browser.
+  // Support on Patreon and Join the Discord (9.3). 9.4: no longer buttons in the Axecleft's Tools menu (it was getting
+  // crowded) or the module settings, but links in the welcome window (below); an older copy's menu entries are taken out.
   const PATREON_URL = "https://www.patreon.com/Axecleft";
   api.patreonUrl = PATREON_URL;
   api.openPatreon = () => { window.open(PATREON_URL, "_blank", "noopener"); };
-  api.register({
-    module: "axecleft-tools", name: "patreon", title: /*t*/"Support on Patreon", hint: /*t*/"Support the Tool Suite on Patreon, in your web browser",
-    icon: "fab fa-patreon", gmOnly: true, last: true, moduleTitle: "",
-    onClick: () => api.openPatreon(),
-  });
-  // Join the Discord (9.3): the Tool Suite's Discord server, for help, news and ideas; in the menu for everyone.
   const DISCORD_URL = "https://discord.gg/FRhPPwDWta";
   api.discordUrl = DISCORD_URL;
   api.openDiscord = () => { window.open(DISCORD_URL, "_blank", "noopener"); };
-  api.register({
-    module: "axecleft-tools", name: "discord", title: /*t*/"Join the Discord", hint: /*t*/"The Tool Suite's Discord server, for help, news and ideas, in your web browser",
-    icon: "fab fa-discord", gmOnly: false, last: true, moduleTitle: "",
-    onClick: () => api.openDiscord(),
-  });
-  /** Add the Join the Discord and Support on Patreon buttons to the settings of every active Axecleft module (called once, at init;
-   *  registered in English, then the language file translates it like the modules' other settings). */
+  api.unregister("axecleft-tools", "patreon");
+  api.unregister("axecleft-tools", "discord");
+  /*
+   * 9.4: the Tool Suite's welcome window and settings (Join the Discord, Support on Patreon, User Guide).
+   * The welcome window opens when Foundry starts, unless the GM turns it off for the world or a user turns it off for
+   * themselves (never on a VooDoo phone). Each active Axecleft module's settings get one "Axecleft's Tool Suite" button
+   * that opens the suite's settings. Its settings are registered under the "world" namespace, so they stay whichever
+   * Axecleft modules are active.
+   */
+  const WELCOME_WORLD = "axecleftToolsWelcome", WELCOME_MINE = "axecleftToolsWelcomeMine";
+  let welcomeNs = null;
+  const welcomeGet = (k, d = true) => { try { return game.settings.get(welcomeNs ?? "world", k); } catch (e) { return d; } };
+  const welcomeSet = async (k, v) => { try { await game.settings.set(welcomeNs ?? "world", k, v); } catch (e) { console.warn("AxecleftTools | welcome setting", e); } };
+  /** The active Axecleft modules: [{ title, version }]. */
+  const suiteModules = () => [...i18n.modules].map((id) => game.modules.get(id)).filter((m) => m?.active)
+    .map((m) => ({ title: m.title ?? m.id, version: m.version ?? "" })).sort((x, y) => x.title.localeCompare(y.title));
+  const linkButton = (href, icon, label, hint) => `<a class="axecleft-welcome-link" href="${escH(href)}" target="_blank" rel="noopener"><i class="${icon}"></i><span><strong>${escH(label)}</strong><small>${escH(hint)}</small></span></a>`;
+  const welcomeLinks = () => `<div class="axecleft-welcome-links">
+      ${linkButton(DISCORD_URL, "fab fa-discord", t("Join the Discord"), t("Help, news, ideas and early looks at what comes next."))}
+      ${linkButton(PATREON_URL, "fab fa-patreon", t("Support on Patreon"), t("Axecleft's modules are free. Patrons get new releases two weeks early."))}
+      ${linkButton(api.guideUrl(), "fas fa-book", t("User Guide"), t("How each tool works, in your web browser."))}
+    </div>`;
+  const welcomeStyle = () => {
+    if (document.getElementById("axecleft-welcome-style")) return;
+    const st = document.createElement("style");
+    st.id = "axecleft-welcome-style";
+    st.textContent = `.axecleft-welcome-links { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+      .axecleft-welcome-link { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--color-border-light-tertiary, #7a7971); border-radius: 6px; text-decoration: none; }
+      .axecleft-welcome-link:hover { box-shadow: 0 0 6px var(--color-shadow-primary, #ff6400); }
+      .axecleft-welcome-link i { font-size: 1.6em; width: 1.4em; text-align: center; }
+      .axecleft-welcome-link span { display: flex; flex-direction: column; }
+      .axecleft-welcome-link small { opacity: 0.8; }
+      .axecleft-welcome-mods { margin: 4px 0 8px; padding-left: 18px; columns: 2; font-size: 0.9em; }
+      .axecleft-welcome-check { display: flex; align-items: center; gap: 6px; margin: 4px 0; }`;
+    document.head.append(st);
+  };
+  /** A VooDoo phone (a mobile account): no welcome window there. */
+  const onPhone = () => { try { return !!game.user?.getFlag?.("axeclefts-voodoo", "main"); } catch (e) { return false; } };
+
+  /** The welcome window: the links, the active modules, and "Show this when Foundry starts" for this user. */
+  api.showWelcome = async () => {
+    welcomeStyle();
+    const mods = suiteModules();
+    const content = `<p>${escH(t("Thanks for using Axecleft's Tool Suite! Come and say hello, ask for help or suggest an idea on Discord; Patreon keeps the modules free."))}</p>
+      ${welcomeLinks()}
+      ${mods.length ? `<p class="hint">${escH(t("Active in this world:"))}</p><ul class="axecleft-welcome-mods">${mods.map((m) => `<li>${escH(m.title)} <small>${escH(m.version)}</small></li>`).join("")}</ul>` : ""}
+      <label class="axecleft-welcome-check"><input type="checkbox" name="welcomeMine" ${welcomeGet(WELCOME_MINE) ? "checked" : ""}> ${escH(t("Show this when Foundry starts"))}</label>
+      <p class="hint">${escH(t("You can change this later: Configure Settings → any Axecleft module → Axecleft's Tool Suite."))}</p>`;
+    await DialogShim.wait({
+      window: { title: t("Axecleft's Tool Suite"), icon: "fas fa-toolbox" }, position: { width: 460 }, content,
+      buttons: [{ action: "close", label: t("Close"), icon: "fas fa-check", default: true }],
+      render: (ev, dlg) => {
+        const el = dlg?.element?.querySelector ? dlg.element : dlg?.element?.[0];
+        el?.querySelector?.("input[name='welcomeMine']")?.addEventListener("change", (e) => welcomeSet(WELCOME_MINE, !!e.currentTarget.checked));
+      },
+    });
+  };
+
+  /** The suite's settings: the welcome window (for the world, GM only; for me) and the links. */
+  api.openSuiteSettings = async () => {
+    welcomeStyle();
+    const gm = !!game.user?.isGM;
+    const content = `<p class="hint">${escH(t("Settings shared by every Axecleft module."))}</p>
+      <label class="axecleft-welcome-check"><input type="checkbox" name="welcomeWorld" ${welcomeGet(WELCOME_WORLD) ? "checked" : ""} ${gm ? "" : "disabled"}> ${escH(t("Show the welcome window when Foundry starts (everyone in this world)"))}</label>
+      <label class="axecleft-welcome-check"><input type="checkbox" name="welcomeMine" ${welcomeGet(WELCOME_MINE) ? "checked" : ""}> ${escH(t("Show it to me"))}</label>
+      <p class="hint">${escH(t("The welcome window has the links to the Tool Suite's Discord, Patreon and User Guide."))}</p>
+      ${welcomeLinks()}`;
+    const res = await DialogShim.wait({
+      window: { title: t("Axecleft's Tool Suite"), icon: "fas fa-toolbox" }, position: { width: 460 }, content,
+      buttons: [
+        { action: "save", label: t("Save"), icon: "fas fa-floppy-disk", default: true, callback: (ev, btn) => {
+          const f = btn.form?.elements ?? {};
+          return { world: !!f.welcomeWorld?.checked, mine: !!f.welcomeMine?.checked };
+        } },
+        { action: "show", label: t("Show the welcome window"), icon: "fas fa-door-open" },
+      ],
+    });
+    if (res && typeof res === "object") {
+      if (gm && res.world !== welcomeGet(WELCOME_WORLD)) await welcomeSet(WELCOME_WORLD, res.world);
+      if (res.mine !== welcomeGet(WELCOME_MINE)) await welcomeSet(WELCOME_MINE, res.mine);
+    } else if (res === "show") api.showWelcome();
+  };
+
+  /** At init: the welcome settings, and the "Axecleft's Tool Suite" button in each active Axecleft module's settings. */
   api.registerSupportMenus = () => {
+    for (const ns of ["world", ...[...i18n.modules].filter((id) => game.modules.get(id)?.active)]) {
+      try {
+        if (!game.settings.settings?.has?.(`${ns}.${WELCOME_WORLD}`)) game.settings.register(ns, WELCOME_WORLD, { scope: "world", config: false, type: Boolean, default: true });
+        if (!game.settings.settings?.has?.(`${ns}.${WELCOME_MINE}`)) game.settings.register(ns, WELCOME_MINE, { scope: "client", config: false, type: Boolean, default: true });
+        welcomeNs = ns;
+        break;
+      } catch (e) { console.warn(`AxecleftTools | could not register the welcome settings under "${ns}"`, e); }
+    }
     const Base = foundry.applications?.api?.ApplicationV2 ?? (typeof FormApplication !== "undefined" ? FormApplication : null);
     if (!Base) return;
-    // Settings menus open a window; this one opens the Patreon page instead and shows nothing.
-    class AxecleftPatreonLink extends Base {
-      render() { globalThis.AxecleftTools.openPatreon(); return this; }
+    // Settings menus open a window; this one opens the suite's settings dialog instead.
+    class AxecleftSuiteSettings extends Base {
+      render() { globalThis.AxecleftTools.openSuiteSettings(); return this; }
     }
-    class AxecleftDiscordLink extends Base {
-      render() { globalThis.AxecleftTools.openDiscord(); return this; }
-    }
-    const menus = [
-      ["discord", { name: /*t*/"Join the Discord", label: /*t*/"Open Discord", hint: /*t*/"Axecleft's Tool Suite Discord server: help, news, ideas and early looks at what comes next.", icon: "fab fa-discord", type: AxecleftDiscordLink }],
-      ["patreon", { name: /*t*/"Support on Patreon", label: /*t*/"Open Patreon", hint: /*t*/"Axecleft's modules are free. Patrons get new releases two weeks early.", icon: "fab fa-patreon", type: AxecleftPatreonLink }],
-    ];
+    const menu = { name: /*t*/"Axecleft's Tool Suite", label: /*t*/"Tool Suite settings", hint: /*t*/"Settings shared by every Axecleft module (the welcome window), and the links to the Tool Suite's Discord, Patreon and User Guide.", icon: "fas fa-toolbox", type: AxecleftSuiteSettings, restricted: false };
     for (const id of i18n.modules) {
-      if (!game.modules.get(id)?.active) continue;
-      for (const [key, menu] of menus) {
-        if (game.settings.menus.has(`${id}.${key}`)) continue;
-        try { game.settings.registerMenu(id, key, { ...menu, restricted: false }); }
-        catch (err) { console.warn(`AxecleftTools | Couldn't add the ${key} button to ${id}'s settings`, err); }
-      }
+      if (!game.modules.get(id)?.active || game.settings.menus.has(`${id}.suite`)) continue;
+      try { game.settings.registerMenu(id, "suite", { ...menu }); } // a copy each: Foundry writes the module into it
+      catch (err) { console.warn(`AxecleftTools | Couldn't add the Tool Suite button to ${id}'s settings`, err); }
     }
   };
+  // The welcome window when Foundry starts (once, whichever version loads first; it calls the newest API)
+  if (!globalThis.__axecleftWelcome) {
+    globalThis.__axecleftWelcome = true;
+    Hooks.once("ready", () => {
+      const A = globalThis.AxecleftTools;
+      if (!A?.showWelcome || onPhone() || !welcomeGet(WELCOME_WORLD) || !welcomeGet(WELCOME_MINE)) return;
+      setTimeout(() => A.showWelcome(), 1500);
+    });
+  }
+  /*
+   * 9.5: a function as the number of dice. Some D35E spells give their damage as "min((@cl),10)d6" (Lightning Bolt).
+   * Foundry's dice grammar only takes a number or a bracket before the "d", and D35E's pre-processing leaves min() and
+   * max() alone outside its own size functions, so the roll fails ("Expected a bracket…"). Such a function is put in
+   * brackets before Foundry reads the formula: "(min((@cl),10))d6". Nothing else in the formula changes.
+   */
+  const DICE_FN = /\b(min|max|floor|ceil|round|abs|trunc)\s*\(/gi;
+  api.fixDiceFunctions = (formula) => {
+    const f = String(formula ?? "");
+    if (!/\)\s*d/i.test(f)) return f;
+    let out = "", last = 0;
+    DICE_FN.lastIndex = 0;
+    let m;
+    while ((m = DICE_FN.exec(f))) {
+      const start = m.index;
+      if (start < last) continue;
+      // The function's closing bracket
+      let depth = 0, end = -1;
+      for (let i = start + m[0].length - 1; i < f.length; i++) {
+        if (f[i] === "(") depth++;
+        else if (f[i] === ")" && --depth === 0) { end = i; break; }
+      }
+      if (end < 0) break;
+      const after = f.slice(end + 1);
+      const already = f.slice(0, start).trimEnd().endsWith("(") && /^\s*\)/.test(after);
+      if (/^\s*[dD](\d|\()/.test(after) && !already) {
+        out += f.slice(last, start) + "(" + f.slice(start, end + 1) + ")";
+        last = end + 1;
+        DICE_FN.lastIndex = end + 1;
+      }
+    }
+    return out + f.slice(last);
+  };
+  api.patchDiceFormulas = () => {
+    const Base = globalThis.foundry?.dice?.Roll ?? globalThis.Roll;
+    const classes = [...new Set([...(CONFIG.Dice?.rolls ?? []), Base].filter(Boolean))];
+    for (const cls of classes) {
+      if (!Object.prototype.hasOwnProperty.call(cls, "parse")) continue;
+      const own = Object.getOwnPropertyDescriptor(cls, "parse")?.value;
+      if (typeof own !== "function" || own.__axecleftDice) continue;
+      const wrapped = function (formula, data) { return own.call(this, globalThis.AxecleftTools?.fixDiceFunctions?.(formula) ?? formula, data); };
+      wrapped.__axecleftDice = true;
+      try { Object.defineProperty(cls, "parse", { value: wrapped, writable: true, configurable: true }); }
+      catch (err) { console.warn("AxecleftTools | dice formula fix", err); }
+    }
+  };
+  if (!globalThis.__axecleftDiceFix) {
+    globalThis.__axecleftDiceFix = true;
+    Hooks.once("ready", () => globalThis.AxecleftTools?.patchDiceFormulas?.());
+  }
+
   // Once, whichever version loads first; it always calls the newest API.
   if (!globalThis.__axecleftSupportMenus) {
     globalThis.__axecleftSupportMenus = true;

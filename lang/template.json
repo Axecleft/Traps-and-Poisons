@@ -533,5 +533,19 @@
  "Single target": "",
  "Two adjacent squares": "",
  "Water-Filled Room (SRD CR {n})": "",
- "{n} ft. deep": ""
+ "{n} ft. deep": "",
+ "Help, news, ideas and early looks at what comes next.": "",
+ "How each tool works, in your web browser.": "",
+ "Thanks for using Axecleft's Tool Suite! Come and say hello, ask for help or suggest an idea on Discord; Patreon keeps the modules free.": "",
+ "Active in this world:": "",
+ "Show this when Foundry starts": "",
+ "You can change this later: Configure Settings → any Axecleft module → Axecleft's Tool Suite.": "",
+ "Axecleft's Tool Suite": "",
+ "Settings shared by every Axecleft module.": "",
+ "Show the welcome window when Foundry starts (everyone in this world)": "",
+ "Show it to me": "",
+ "The welcome window has the links to the Tool Suite's Discord, Patreon and User Guide.": "",
+ "Show the welcome window": "",
+ "Tool Suite settings": "",
+ "Settings shared by every Axecleft module (the welcome window), and the links to the Tool Suite's Discord, Patreon and User Guide.": ""
 }
