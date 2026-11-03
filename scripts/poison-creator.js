@@ -12,7 +12,7 @@
  *   game.modules.get("traps-and-poisons").api.openPoisonCreator();
  */
 
-import { enIndex, enName, t } from "./trap-pricing.js";
+import { enIndex, enName, t, costOf } from "./trap-pricing.js";
 // The window is in the world's language; the items it makes stay English for now (their text and action names are read back)
 const MOD = "traps-and-poisons";
 const CUSTOM_PACK_NAME = "axecleft-custom-poisons";
@@ -38,34 +38,46 @@ const IMG_SECONDARY = "systems/D35E/icons/special-abilities/poison-secondary.png
  *  cond: set D35E condition flags; buff: apply a buff (module's or D35E's).
  */
 const CONDITIONS = [
-  { re: /^(unconsciousness|unconscious)$/, label: "unconsciousness", word: "Unconscious", cond: ["unconscious", "helpless", "prone"] },
-  { re: /^(paralysis|paralyzed)$/, label: "paralysis", word: "Paralyzed", buff: ["Paralyzed", `${MOD}.common-trap-buffs`] },
-  { re: /^(stun|stunned)$/, label: "stunned", word: "Stunned", buff: ["Stunned", `${MOD}.common-trap-buffs`] },
-  { re: /^(shaken)$/, label: "shaken", word: "Shaken", buff: ["Shaken", `${MOD}.common-trap-buffs`] },
-  { re: /^(frightened|fear)$/, label: "frightened", word: "Frightened", buff: ["Frightened", `${MOD}.common-trap-buffs`] },
-  { re: /^(petrified|petrification)$/, label: "petrified", word: "Petrified", buff: ["Petrified", `${MOD}.common-trap-buffs`] },
-  { re: /^(prone)$/, label: "prone", word: "Prone", buff: ["Prone", `${MOD}.common-trap-buffs`] },
-  { re: /^(blind|blinded|blindness)$/, label: "blindness", word: "Blinded", buff: ["Blinded", "D35E.commonbuffs"] },
-  { re: /^(sickened)$/, label: "sickened", word: "Sickened", cond: ["sickened"] },
-  { re: /^(fatigued|fatigue)$/, label: "fatigued", word: "Fatigued", cond: ["fatigued"] },
-  { re: /^(exhausted|exhaustion)$/, label: "exhausted", word: "Exhausted", cond: ["exhausted"] },
-  { re: /^(deaf|deafened|deafness)$/, label: "deafness", word: "Deafened", cond: ["deaf"] },
-  { re: /^(dazzled)$/, label: "dazzled", word: "Dazzled", cond: ["dazzled"] },
-  { re: /^(nauseated|nausea)$/, label: "nauseated", word: "Nauseated", cond: ["nauseated"] },
+  { re: /^(unconsciousness|unconscious|inconscience|inconscient|inconsciente?|inconsciencia|inconsciencia)$/, label: "unconsciousness", word: "Unconscious", cond: ["unconscious", "helpless", "prone"] },
+  { re: /^(paralysis|paralyzed|paralysie|paralyse|paralysee|paralisis|paralizado|paralizada|paralisia|paralisado|paralisada)$/, label: "paralysis", word: "Paralyzed", buff: ["Paralyzed", `${MOD}.common-trap-buffs`] },
+  { re: /^(stun|stunned|etourdi|etourdie|etourdissement|aturdido|aturdida|atordoado|atordoada)$/, label: "stunned", word: "Stunned", buff: ["Stunned", `${MOD}.common-trap-buffs`] },
+  { re: /^(shaken|secoue|secouee|estremecido|estremecida|abalado|abalada)$/, label: "shaken", word: "Shaken", buff: ["Shaken", `${MOD}.common-trap-buffs`] },
+  { re: /^(frightened|fear|effraye|effrayee|peur|terreur|asustado|asustada|miedo|amedrontado|amedrontada|medo)$/, label: "frightened", word: "Frightened", buff: ["Frightened", `${MOD}.common-trap-buffs`] },
+  { re: /^(petrified|petrification|petrifie|petrifiee|petrificado|petrificada|petrificacion|petrificacao)$/, label: "petrified", word: "Petrified", buff: ["Petrified", `${MOD}.common-trap-buffs`] },
+  { re: /^(prone|renverse|renversee|aterre|derribado|derribada|caido|caida)$/, label: "prone", word: "Prone", buff: ["Prone", `${MOD}.common-trap-buffs`] },
+  { re: /^(blind|blinded|blindness|aveugle|aveuglee|cecite|cegado|cegada|ceguera|cego|cega|cegueira)$/, label: "blindness", word: "Blinded", buff: ["Blinded", "D35E.commonbuffs"] },
+  { re: /^(sickened|fievreux|fievreuse|mareado|mareada|enjoado|enjoada)$/, label: "sickened", word: "Sickened", cond: ["sickened"] },
+  { re: /^(fatigued|fatigue|fatiguee|fatigado|fatigada)$/, label: "fatigued", word: "Fatigued", cond: ["fatigued"] },
+  { re: /^(exhausted|exhaustion|epuise|epuisee|epuisement|exhausto|exhausta|agotado|agotada|exausto|exausta)$/, label: "exhausted", word: "Exhausted", cond: ["exhausted"] },
+  { re: /^(deaf|deafened|deafness|sourd|sourde|surdite|ensordecido|ensordecida|sordera|surdo|surda|surdez)$/, label: "deafness", word: "Deafened", cond: ["deaf"] },
+  { re: /^(dazzled|ebloui|eblouie|deslumbrado|deslumbrada|ofuscado|ofuscada)$/, label: "dazzled", word: "Dazzled", cond: ["dazzled"] },
+  { re: /^(nauseated|nausea|nauseeux|nauseeuse|nausee|nauseado|nauseada)$/, label: "nauseated", word: "Nauseated", cond: ["nauseated"] },
 ];
 
 const DICE = String.raw`\(?\d+(?:d\d+)?(?:\s*[+-]\s*\d+)?\)?`;
 const cleanDice = (d) => String(d).replace(/[()\s]/g, "");
 const isZero = (d) => /^(0|1d1-1)$/.test(cleanDice(d));
 const plainDice = (d) => { const x = cleanDice(d); return x === "1d1" ? "1" : isZero(x) ? "0" : x; };
-const abilityKey = (s) => Object.keys(ABILITIES).find((k) => k.slice(0, 2) === String(s).toLowerCase().slice(0, 2));
+/**
+ * 1.14.6.22: the damage boxes also take the usual French, Spanish and Portuguese words (accents optional):
+ * abilities For/Dex/Con/Int/Sag/Cha (Fue, Des, Sab, Car), pv / pg (hp), diminution / dreno (drain), aucun / ninguno / nenhum (0),
+ * conditions (inconscience, paralysie, étourdi…) and durations (tours, heures, jours; asaltos, horas, días; rodadas, dias).
+ */
+const fold = (s) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const ABILITY_WORDS = { str: ["str", "for", "fue"], dex: ["dex", "des"], con: ["con"], int: ["int"], wis: ["wis", "sag", "sab"], cha: ["cha", "car"] };
+const ABILITY_RE = Object.values(ABILITY_WORDS).flat().join("|");
+const abilityKey = (s) => { const x = fold(s).slice(0, 3); return Object.keys(ABILITY_WORDS).find((k) => ABILITY_WORDS[k].includes(x)) ?? Object.keys(ABILITIES).find((k) => k.slice(0, 2) === x.slice(0, 2)); };
+const DRAIN_RE = String.raw`(?: ?\*| (?:permanent )?drain| (?:diminution|absorption)(?: permanente)?| (?:consuncion|absorcion|dreno|drenagem)(?: permanente)?)`;
+const HP_RE = String.raw`(?:hp|hit points?|points? of damage|damage|pv|points? de vie|degats|pg|puntos de golpe|dano|pontos de vida|pv\.)`;
+const UNITS = { round: 1, rounds: 1, tour: 1, tours: 1, asalto: 1, asaltos: 1, rodada: 1, rodadas: 1, minute: 10, minutes: 10, minuto: 10, minutos: 10,
+  hour: 600, hours: 600, heure: 600, heures: 600, hora: 600, horas: 600, day: 14400, days: 14400, jour: 14400, jours: 14400, dia: 14400, dias: 14400 };
 
 /** Convert a duration ("1 minute", "2d4 hours", "3 rounds") to a rounds formula, or null. */
 export function durationRounds(text) {
-  const m = String(text ?? "").trim().match(new RegExp(`^(${DICE})\\s*(round|minute|hour|day)s?\\b`, "i"));
-  if (!m) return null;
-  const n = cleanDice(m[1]), unit = m[2].toLowerCase();
-  const mult = { round: 1, minute: 10, hour: 600, day: 14400 }[unit];
+  const m = fold(text).trim().match(new RegExp(`^(${DICE})\\s*([a-z]+)`, "i"));
+  if (!m || !UNITS[m[2]]) return null;
+  const n = cleanDice(m[1]);
+  const mult = UNITS[m[2]];
   return mult === 1 ? n : /^\d+$/.test(n) ? String(+n * mult) : `(${n})*${mult}`;
 }
 
@@ -80,19 +92,19 @@ export function parseEffectText(text) {
   const pieces = String(text ?? "").split(/\s*(?:\+|,)\s*(?![^()]*\))/).map((s) => s.trim()).filter(Boolean);
   for (const piece of pieces) {
     const p = piece.replace(/\s+/g, " ");
-    const lower = p.toLowerCase();
+    const lower = fold(p);
     let m;
-    if (/^(0|none|-|—|no effect)$/.test(lower)) continue;
-    if ((m = lower.match(new RegExp(`^(${DICE}) (str|dex|con|int|wis|cha)[a-z]*( ?\\*| (?:permanent )?drain)?$`)))) {
+    if (/^(0|none|-|—|no effect|aucun|aucun effet|sans effet|rien|ninguno|ningun efecto|sin efecto|nenhum|nenhum efeito|sem efeito)$/.test(lower)) continue;
+    if ((m = lower.match(new RegExp(`^(${DICE}) (${ABILITY_RE})[a-z]*(${DRAIN_RE})?$`)))) {
       const amount = cleanDice(m[1]);
       if (isZero(amount)) continue;
-      parts.push({ kind: m[3] ? "drain" : "ability", ability: m[2], amount });
-    } else if ((m = lower.match(new RegExp(`^(${DICE}) (?:hp|hit points?|points? of damage|damage)$`)))) {
+      parts.push({ kind: m[3] ? "drain" : "ability", ability: abilityKey(m[2]), amount });
+    } else if ((m = lower.match(new RegExp(`^(${DICE}) ${HP_RE}$`)))) {
       parts.push({ kind: "hp", amount: cleanDice(m[1]) });
     } else {
       const [word, ...rest] = lower.split(" ");
       const c = CONDITIONS.find((x) => x.re.test(word.replace(/[^a-z]/g, "")));
-      if (c) parts.push({ kind: "condition", key: c.label, duration: p.split(" ").slice(1).join(" ").replace(/^for /i, "").trim() || null });
+      if (c) parts.push({ kind: "condition", key: c.label, duration: p.split(" ").slice(1).join(" ").replace(/^(?:for|pendant|durante|por) /i, "").trim() || null });
       else parts.push({ kind: "message", text: p.replace(/;/g, ",") });
     }
   }
@@ -249,6 +261,7 @@ export function itemToForm(item, { folderName = null, consumable = null } = {}) 
   }
   f.extras = extras;
   if (consumable) f.price = Number(consumable.system?.price) || 0;
+  if (!f.price && isDisease) f.price = costOf(item);
   return f;
 }
 
@@ -306,7 +319,10 @@ export function buildDocuments(f, { attackBase, consumableBase, packId = CUSTOM_
       + `<tr><td>${escHtml(name)}</td><td>${f.delivery}</td><td>${dc}</td><td>${escHtml(inc)}</td><td>${escHtml(secText)}</td></tr></thead></table>`
       + (notes ? `<p>${escHtml(notes)}</p>` : "")
       + `<p>On a failed ${save} save the disease takes hold. After the incubation period the victim takes the listed damage, and must make a ${save} save each day afterward to avoid repeated damage. `
-      + `${Number(f.recover) === 3 ? "Three" : "Two"} successful saving throws in a row indicate that he has fought off the disease and recovers.</p></div>` };
+      + `${Number(f.recover) === 3 ? "Three" : "Two"} successful saving throws in a row indicate that he has fought off the disease and recovers.</p>`
+      // 1.14.6.22: the SRD gives diseases no price; a price here is written as a Cost line that trap prices add (like a poison's)
+      + (Number(f.price) > 0 ? `<p>Cost: ${Number(f.price).toLocaleString("en-US")} gp</p>` : "") + `</div>` };
+    if (Number(f.price) > 0) s.price = Number(f.price);
     s.effectNotes = `Incubation ${inc}; ${secText} per day; ${save.slice(0, 4)} DC ${dc} daily; ${recover}`;
     s.specialActions = [
       { name: "Apply Disease", action: `Create unique "Diseased" from "${MOD}.common-trap-buffs" on target;Set buff "Diseased" field system.description.value exact "${bufftext}" on target;Set buff "Diseased" field name to "Diseased (${name})" on target;Activate buff "Diseased (${name})" on target;`, condition: "", img: ICON_DISEASE },
@@ -496,7 +512,7 @@ function formHtml(f, groups, templateUuid) {
     <div class="form-group"><label>${H("Type")}</label>${sel("kind", [["poison", t("Poison")], ["disease", t("Disease")]], f.kind)}</div>
     <div class="form-group"><label>${H("Name")}</label><input type="text" name="name" value="${escHtml(f.name)}" placeholder="${H("e.g. Swamp Adder Venom")}"></div>
     <div class="form-group"><label>${H("Delivery")}</label>${sel("delivery", DELIVERY.map((d) => [d, t(d)]), f.delivery)}</div>
-    <div class="form-group"><label>${H("Saving throw")}</label>${sel("saveType", Object.entries(SAVES).map(([k, l]) => [k, t(l)]), f.saveType)}<label style="flex:0 0 2.5em;text-align:right">DC</label><input type="number" name="dc" value="${escHtml(f.dc)}" min="1" step="1"></div>
+    <div class="form-group"><label>${H("Saving throw")}</label>${sel("saveType", Object.entries(SAVES).map(([k, l]) => [k, t(l)]), f.saveType)}<label style="flex:0 0 2.5em;text-align:right">${H("DC")}</label><input type="number" name="dc" value="${escHtml(f.dc)}" min="1" step="1"></div>
     <div class="form-group" data-for="poison"${f.kind === "poison" ? "" : ' style="display:none"'}><label>${H("Initial damage")}</label><input type="text" name="initial" value="${escHtml(f.kind === "poison" ? f.initial : "")}" placeholder="${H("e.g. 1d6 Con  or  2d12 hp  or  unconsciousness 1 minute")}"></div>
     <div class="form-group" data-for="disease"${f.kind === "disease" ? "" : ' style="display:none"'}><label>${H("Incubation")}</label><input type="text" name="incubation" value="${escHtml(f.incubation)}" placeholder="${H("e.g. 1d3 days")}"></div>
     <div class="form-group"><label><span data-for="poison"${f.kind === "poison" ? "" : ' style="display:none"'}>${H("Secondary damage")}</span><span data-for="disease"${f.kind === "disease" ? "" : ' style="display:none"'}>${H("Damage (each day)")}</span></label><input type="text" name="secondary" value="${escHtml(f.secondary)}" placeholder="${H("e.g. 2d6 Con  or  1d4 Con + 1d3 Wis")}"></div>
@@ -504,11 +520,12 @@ function formHtml(f, groups, templateUuid) {
     <div class="form-group"><label>${H("Price (gp)")}</label><input type="number" name="price" value="${escHtml(f.price)}" min="0" step="1"></div>
     <div class="form-group"><label>${H("Notes")}</label><input type="text" name="notes" value="${escHtml(f.notes)}" placeholder="${H("Optional description")}"></div>
     <div class="hint" style="margin:-2px 0 6px 9.5em;font-size:0.85em;line-height:1.35">
-      <strong>${H("What you can type in the damage boxes (in English):")}</strong><br>
-      ${H("Ability damage:")} <code>1d6 Con</code> &nbsp;·&nbsp; ${H("Ability drain (permanent):")} <code>1 Con drain</code><br>
-      ${H("Hit point damage:")} <code>2d12 hp</code> &nbsp;·&nbsp; ${H("No effect:")} <code>0</code><br>
-      ${H("Condition, with optional duration:")} <code>unconsciousness 2d4 hours</code>, <code>paralysis 2d6 minutes</code><br>
-      ${H("Several effects: join with {plus}, e.g. {example}", { plus: "\u0001", example: "\u0002" }).replace("\u0001", "<code>+</code>").replace("\u0002", "<code>1d4 Con + 1d3 Wis</code>")}<br>
+      <strong>${H("What you can type in the damage boxes:")}</strong><br>
+      ${H("Ability damage:")} <code>${H("1d6 Con")}</code> &nbsp;·&nbsp; ${H("Ability drain (permanent):")} <code>${H("1 Con drain")}</code><br>
+      ${H("Hit point damage:")} <code>${H("2d12 hp")}</code> &nbsp;·&nbsp; ${H("No effect:")} <code>0</code><br>
+      ${H("Condition, with optional duration:")} <code>${H("unconsciousness 2d4 hours")}</code>, <code>${H("paralysis 2d6 minutes")}</code><br>
+      ${H("Several effects: join with {plus}, e.g. {example}", { plus: "\u0001", example: "\u0002" }).replace("\u0001", "<code>+</code>").replace("\u0002", `<code>${H("1d4 Con + 1d3 Wis")}</code>`)}<br>
+      ${/^en\b/i.test(game.i18n?.lang ?? "en") ? "" : `${H("The English words work too (1d6 Con, 2d12 hp, unconsciousness 2d4 hours), as do French, Spanish and Portuguese ones.")}<br>`}
       ${H("Anything else is posted to chat as a message. Check the preview below.")}
     </div>
     <div class="tp-pc-extras"></div>
@@ -621,5 +638,22 @@ if (globalThis.Hooks) {
   globalThis.AxecleftTools?.register({
     module: MOD, name: "poison-creator", title: /*t*/"Poison & Disease Creator", img: "icons/svg/poison.svg",
     hint: /*t*/"Create a new poison or disease (attack and consumable)", gmOnly: true, onClick: () => openPoisonCreator(),
-  });
+  });  // A tour of the window (Axecleft's Tools 9.7): Tour Management, or the window's ⋮ menu
+  globalThis.AxecleftTools?.registerTour?.({ module: MOD, id: "poison-creator", cls: "tp-poison-creator",
+    open: async () => { if (!document.querySelector(".tp-poison-creator")) openPoisonCreator(); for (let i = 0; i < 60 && !document.querySelector(".tp-poison-creator"); i++) await new Promise((r) => setTimeout(r, 50)); },
+    title: /*t*/"Poison & Disease Creator", description: /*t*/"Create a poison or disease: its attack and its consumable item.",
+    steps: [
+      { id: "template", field: "template", title: /*t*/"Template", content: /*t*/"Start from an existing poison or disease to fill in the form, then change only what you need. Or start blank." },
+      { id: "kind", field: "kind", title: /*t*/"Type", content: /*t*/"Poison or disease. The boxes below change with it." },
+      { id: "name", field: "name", title: /*t*/"Name", content: /*t*/"Its name." },
+      { id: "delivery", field: "delivery", title: /*t*/"Delivery", content: /*t*/"How it is delivered: contact, ingested, inhaled or injury." },
+      { id: "save", field: "saveType", title: /*t*/"Saving throw", content: /*t*/"The save that resists it, and its DC." },
+      { id: "initial", field: "initial", title: /*t*/"Initial damage", content: /*t*/"For a poison: the damage on exposure, on a failed save. For a disease, Incubation (how long before it strikes) takes its place." },
+      { id: "secondary", field: "secondary", title: /*t*/"Secondary damage", content: /*t*/"For a poison: the damage a minute later, on a second failed save. For a disease: the damage each day, with the saves in a row needed to recover." },
+      { id: "help", sel: ".tp-pc > div.hint", title: /*t*/"What you can type", content: /*t*/"The damage boxes understand ability damage (1d6 Con), drain (1 Con drain), hit points (2d12 hp), conditions with a duration (paralysis 2d6 minutes) and several effects joined with +. Anything else is posted to chat." },
+      { id: "price", field: "price", title: /*t*/"Price and notes", content: /*t*/"Its price in gp, and an optional description." },
+      { id: "preview", sel: ".tp-pc-preview", title: /*t*/"Preview", content: /*t*/"What will be created, an attack and a consumable, and how each damage box was read. Problems are shown in red." },
+      { id: "copy", field: "copyToWorld", title: /*t*/"Also add to Items", content: /*t*/"Ticked, both items are also copied into a folder of the Items sidebar." },
+      { id: "buttons", sel: "footer.form-footer, .dialog-buttons", title: /*t*/"Create", direction: "UP", content: /*t*/"Creates the poison or disease in the module's compendium (and the Items folder if ticked)." },
+    ] });
 }

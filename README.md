@@ -3,6 +3,21 @@ A collection of Traps, Poisons, and Diseases from the Dungeons and Dragons 3.5 S
 
 Changelog:
 
+v1.14.6.22:
+
+- Ships Axecleft's Tools 9.71: **tours**. Foundry's own guided tours (Configure Settings → **Tour Management**) walk through a window one tab at a time, pointing out what each part of the tab does. Each Axecleft window with tours also has **Tour of this tab** in its ⋮ menu (top right), or a **Tour** button in its title bar on Foundry 11, and the welcome window has **Take a tour**, which opens Tour Management. Foundry 11, 13 and 14.
+- Ships the Crafting engine 1.96: tours of every crafting tab.
+- Tours of the **Random Trap Generator** and its **Customize** window, the **Poison & Disease Creator**, and the **Trap kits** crafting tab.
+- **Magic traps** (new crafting tab, SRD Magic Trap Costs): a *spell trap* (fire trap, glyph of warding) is cast by its creator, free, or for the SRD price of hiring an NPC caster; a *magic device trap* needs Craft Wondrous Item and every spell in it, including its trigger's (*alarm*, *detect good*, *true seeing*), costs its SRD gp and XP (500 gp and 40 XP × caster level × spell level per spell with an automatic reset) and takes 1 day per 500 gp, with no skill check. The result is a **Magic Trap** item: by default only the caster who built it can set it, on the scene where it was built (new world setting **Magic traps: can be carried**, off; on, it is a kit any spellcaster can carry and set). Magic traps are never packed up again.
+- New world setting **Trap kits: need Craft (trapmaking)** (on): making and setting a mechanical trap kit needs at least 1 rank in Craft (trapmaking). Off, anyone can, as the SRD allows.
+- **Diseases can have a price**: a *Cost: 1,000 gp* line in a disease's description (the Poison & Disease Creator writes it from its Price box) is added to a trap's price like a poison's (×20 with an automatic reset).
+- The Poison & Disease Creator's damage boxes also understand French, Spanish and Portuguese (*1d6 For*, *2d12 pv*, *1 Con diminution*, *inconscience 2d4 heures*, *paralysie 2d6 minutes*), and its examples are in the world's language.
+- **How a trap actor is read**: a help section on the Trap kits and Magic traps tabs lists the lines the module reads (Market Price, triggers, resets, poisons, diseases, spell effects), in English or French. The tours of both tabs point to it.
+- The Customize window's types, triggers and resets, *CR* in Placed Traps and *DC* in the Poison & Disease Creator are in the world's language.
+- Ships the Crafting engine 1.97: feats show by the names this world uses (the translated Feats compendium, e.g. *Création d'armes et d'armures magiques*); a request card's tab name is in the world's language; construction lines can also be written with French, Spanish or Portuguese words (*NLS 5 ; Prérequis : … ou … ; Prix 12 000 po ; Coût 6 000 po + 480 PX*); the Approve / Edit / Reject buttons no longer break a word in two in a narrow chat.
+- French: Gilgalad's corrections from the third review file; texts the language files had missed (Craft progress in silver pieces, a merchant's restock note, hiding an item on the shop sheet) and the new ones drafted for review.
+- Ships Axecleft's Tools 9.72: searchable lists can have headings that divide them.
+
 v1.14.6.21:
 
 - Ships Axecleft's Tools 9.6: the **Join the Discord** and **Support on Patreon** buttons are gone from the Axecleft's Tools menu and the module settings. A welcome window opens when Foundry starts, with the links to the Tool Suite's Discord, Patreon and User Guide; it can be turned off for the whole world (GM) or just for you in Configure Settings → any Axecleft module → **Axecleft's Tool Suite**. Also fixes dice formulas that use a function as the number of dice (D35E's Lightning Bolt, `min((@cl),10)d6`), which Foundry 14 refused.

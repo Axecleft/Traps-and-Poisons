@@ -71,7 +71,7 @@
  *
  * If two modules ship different versions of this file, the newest one wins.
  */
-const AXECLEFT_TOOLS_VERSION = 9.6; // 9.6: the Tool Suite settings button shows in each module's own settings (they all landed in one); 9.5: dice formulas with a function as the number of dice ("min(@cl,10)d6", D35E's Lightning Bolt) work on Foundry v14; 9.4: Join the Discord and Support on Patreon leave the Tools menu and the module settings for a welcome window at startup (turned off in the Tool Suite settings); 9.3: Support on Patreon and Join the Discord (buttons in each module's settings and in the menu); 9.2: the User Guide opens the wiki in Foundry's language (French, Spanish, Portuguese); 9.1: the User Guide button
+const AXECLEFT_TOOLS_VERSION = 9.72; // 9.72: searchable lists take headings (<option data-heading label="Feats">) that divide the list; 9.71: the tours on Foundry v11 too (a Tour button in each window's title bar); 9.7: tours of each tab (Foundry v13+), in Tour Management and each window's ⋮ menu; 9.6: the Tool Suite settings button shows in each module's own settings (they all landed in one); 9.5: dice formulas with a function as the number of dice ("min(@cl,10)d6", D35E's Lightning Bolt) work on Foundry v14; 9.4: Join the Discord and Support on Patreon leave the Tools menu and the module settings for a welcome window at startup (turned off in the Tool Suite settings); 9.3: Support on Patreon and Join the Discord (buttons in each module's settings and in the menu); 9.2: the User Guide opens the wiki in Foundry's language (French, Spanish, Portuguese); 9.1: the User Guide button
 
 (() => {
   const LAYER = "axecleftTools";
@@ -329,6 +329,7 @@ const AXECLEFT_TOOLS_VERSION = 9.6; // 9.6: the Tool Suite settings button shows
     .axecleft-combo div { padding: 3px 8px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .axecleft-combo div.active, .axecleft-combo div:hover { background: var(--color-warm-2, #a33b24); color: #fff; }
     .axecleft-combo div.none { opacity: 0.7; cursor: default; font-style: italic; } .axecleft-combo div.none:hover { background: none; color: inherit; }
+    .axecleft-combo div.head { cursor: default; font-weight: bold; opacity: 0.85; border-top: 1px solid currentColor; margin-top: 3px; padding-top: 3px; } .axecleft-combo div.head:first-child { border-top: none; margin-top: 0; } .axecleft-combo div.head:hover { background: none; color: inherit; }
     .axecleft-combo mark { background: none; color: inherit; font-weight: bold; text-decoration: underline; }`;
   let comboEl = null, comboFor = null, comboActive = -1;
   function comboBox() {
@@ -372,7 +373,15 @@ const AXECLEFT_TOOLS_VERSION = 9.6; // 9.6: the Tool Suite settings button shows
       const i = v.toLowerCase().indexOf(q);
       return `${esc(v.slice(0, i))}<mark>${esc(v.slice(i, i + q.length))}</mark>${esc(v.slice(i + q.length))}`;
     };
-    box.innerHTML = shown.map((v) => `<div data-v="${esc(v)}" title="${esc(v)}">${hi(v)}</div>`).join("")
+    // Headings (an <option data-heading label="…">) go before the next shown entry of their part of the list
+    const shownSet = new Set(shown);
+    const headFor = new Map();
+    let pending = null;
+    for (const row of input._axcRows?.() ?? []) {
+      if (row.head) { pending = row.head; continue; }
+      if (pending && shownSet.has(row.v) && !headFor.has(row.v)) { headFor.set(row.v, pending); pending = null; }
+    }
+    box.innerHTML = shown.map((v) => `${headFor.has(v) ? `<div class="head">${esc(headFor.get(v))}</div>` : ""}<div data-v="${esc(v)}" title="${esc(v)}">${hi(v)}</div>`).join("")
       + (hits.length > LIMIT ? `<div class="none">${esc(t("{n} more — type to narrow the list", { n: hits.length - LIMIT }))}</div>` : "")
       + (!hits.length ? `<div class="none">${esc(all.length ? t("No match") : t("Nothing to choose from"))}</div>` : "");
     box.querySelectorAll("div[data-v]").forEach((el) => el.addEventListener("click", () => comboPick(input, el.dataset.v)));
@@ -400,6 +409,7 @@ const AXECLEFT_TOOLS_VERSION = 9.6; // 9.6: the Tool Suite settings button shows
       const id = input.getAttribute("list");
       const find = () => root.querySelector?.(`datalist#${CSS.escape(id)}`) ?? document.getElementById(id);
       input._axcOptions = () => [...(find()?.options ?? [])].map((o) => o.value).filter(Boolean);
+      input._axcRows = () => [...(find()?.options ?? [])].map((o) => (o.hasAttribute("data-heading") ? { head: o.label || o.textContent } : { v: o.value })).filter((r) => r.head || r.v);
       input.dataset.list = id;
       input.removeAttribute("list");
       input.setAttribute("autocomplete", "off");
@@ -897,7 +907,44 @@ const AXECLEFT_TOOLS_VERSION = 9.6; // 9.6: the Tool Suite settings button shows
       ${linkButton(DISCORD_URL, "fab fa-discord", t("Join the Discord"), t("Help, news, ideas and early looks at what comes next."))}
       ${linkButton(PATREON_URL, "fab fa-patreon", t("Support on Patreon"), t("Axecleft's modules are free. Patrons get new releases two weeks early."))}
       ${linkButton(api.guideUrl(), "fas fa-book", t("User Guide"), t("How each tool works, in your web browser."))}
+      ${toursButton()}
     </div>`;
+  /** 9.7: "Take a tour" opens Foundry's Tour Management (when this user has an Axecleft tour). */
+  const hasTours = () => {
+    try {
+      if (!TourBase || !globalThis.game?.tours) return false;
+      return [...tourDefs.keys()].some((k) => { const tour = game.tours.get(k); return tour && (!tour.config.restricted || game.user.isGM); });
+    } catch (e) { return false; }
+  };
+  const toursButton = () => (hasTours() ? `<button type="button" class="axecleft-welcome-link" data-axecleft-tours><i class="fas fa-person-hiking"></i><span><strong>${escH(t("Take a tour"))}</strong><small>${escH(t("Guided tours of each tool, one tab at a time."))}</small></span></button>` : "");
+  /** Open Foundry's Tour Management window (closing the window the button was in). */
+  api.openTours = (from = null) => {
+    try {
+      const TM = foundry.applications?.sidebar?.apps?.ToursManagement;
+      if (TM) {
+        const appEl = from?.closest?.(".application");
+        if (appEl?.id) foundry.applications.instances?.get(appEl.id)?.close();
+        const open = foundry.applications.instances?.get("tours-management") ?? new TM();
+        return open.render({ force: true });
+      }
+      // Foundry v11: classic windows (ToursManagement is a global name, not a property of globalThis)
+      const TM11 = typeof ToursManagement !== "undefined" ? ToursManagement : null;
+      if (!TM11) return;
+      const wins = Object.values(globalThis.ui?.windows ?? {});
+      if (from) wins.find((w) => w?.element?.[0]?.contains?.(from))?.close();
+      const open = wins.find((w) => w instanceof TM11) ?? new TM11();
+      return open.render(true);
+    } catch (err) { console.warn("AxecleftTools | Tour Management", err); }
+  };
+  if (!globalThis.__axecleftToursButton) {
+    globalThis.__axecleftToursButton = true;
+    document.addEventListener("click", (ev) => {
+      const btn = ev.target?.closest?.("[data-axecleft-tours]");
+      if (!btn) return;
+      ev.preventDefault();
+      globalThis.AxecleftTools?.openTours?.(btn);
+    });
+  }
   const welcomeStyle = () => {
     if (document.getElementById("axecleft-welcome-style")) return;
     const st = document.createElement("style");
@@ -905,6 +952,7 @@ const AXECLEFT_TOOLS_VERSION = 9.6; // 9.6: the Tool Suite settings button shows
     st.textContent = `.axecleft-welcome-links { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
       .axecleft-welcome-link { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--color-border-light-tertiary, #7a7971); border-radius: 6px; text-decoration: none; }
       .axecleft-welcome-link:hover { box-shadow: 0 0 6px var(--color-shadow-primary, #ff6400); }
+      button.axecleft-welcome-link { width: 100%; height: auto; background: none; font: inherit; color: inherit; text-align: left; line-height: normal; justify-content: flex-start; cursor: pointer; }
       .axecleft-welcome-link i { font-size: 1.6em; width: 1.4em; text-align: center; }
       .axecleft-welcome-link span { display: flex; flex-direction: column; }
       .axecleft-welcome-link small { opacity: 0.8; }
@@ -1040,6 +1088,281 @@ const AXECLEFT_TOOLS_VERSION = 9.6; // 9.6: the Tool Suite settings button shows
   if (!globalThis.__axecleftDiceFix) {
     globalThis.__axecleftDiceFix = true;
     Hooks.once("ready", () => globalThis.AxecleftTools?.patchDiceFormulas?.());
+  }
+
+  /*
+   * 9.7: tours (9.71: Foundry v11 too). A tour walks through one tab of a window, step by step, with Foundry's own Tours
+   * (Configure Settings → Tour Management, grouped by module). Each module describes its tours in English with
+   * registerTour(); the text is translated like the rest of the module. Before each step the tour opens the window on
+   * its tab (and any closed section holding the step's element); a step whose element isn't shown (a setting hides it)
+   * is shown in the middle of the screen instead. Each of our windows also gets "Tour of this tab" in its ⋮ menu.
+   *
+   *   AxecleftTools.registerTour({
+   *     module: "axecleft-gemstones",            // the module it is listed under (or a function returning one)
+   *     id: "gems", title: "Treasure Generator: Gems", description: "…",
+   *     app: "axecleft-treasure-generator",      // the window's id (or cls: a class of the window, for dialogs)
+   *     tab: "t-axecleft-gemstones-gems",        // the tab it covers (for the window's ⋮ menu), optional
+   *     open: async () => …,                     // opens the window on that tab
+   *     steps: [{ id, title, content,            // content: "\n" starts a new paragraph
+   *               field: "gem.grade" | sel: ".atg-tabs" (inside the window) | doc: "#chat" (anywhere) | nothing (centre),
+   *               direction: "UP" | "DOWN" | "LEFT" | "RIGHT", gm: true }],
+   *     next: ["axecleft-gemstones.art"],        // suggested when it ends
+   *   });
+   */
+  const tourDefs = existing?.tourDefs ?? new Map();
+  // Foundry v13+: foundry.nue.Tour; Foundry v11: the global Tour class (a global name, not a property of globalThis)
+  const TourBase = globalThis.foundry?.nue?.Tour ?? (typeof Tour !== "undefined" ? Tour : null);
+  const visible = (el) => !!el && el.isConnected && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== "hidden";
+  const tourRoot = (def) => (def.app ? document.getElementById(def.app) : def.cls ? document.querySelector(`.${CSS.escape(def.cls)}`) : document.body);
+  /** The CSS selector of a step's element. */
+  const stepSelector = (def, s) => {
+    if (s.doc) return s.doc;
+    const root = def.app ? `#${CSS.escape(def.app)}` : def.cls ? `.${CSS.escape(def.cls)}` : "body";
+    if (s.field) {
+      const f = `[name="${String(s.field).replace(/"/g, '\\"')}"]`;
+      return `${root} .form-group:has(${f}), ${root} .atg-checks:has(${f}), ${root} label:has(${f}), ${root} ${f}`;
+    }
+    if (s.sel) return s.sel.split(",").map((x) => `${root} ${x.trim()}`).join(", ");
+    return null;
+  };
+  let AxecleftTour = existing?.AxecleftTour ?? null;
+  if (TourBase && !AxecleftTour) {
+    AxecleftTour = class AxecleftTour extends TourBase {
+      #centered = null;
+      get def() { return tourDefs.get(this.key) ?? null; }
+      /** The window must be open before the first step (Foundry's Tour Management window closes over it otherwise). */
+      async start() {
+        try { await this.def?.open?.(); } catch (err) { console.error(`AxecleftTools | tour ${this.key}: couldn't open the window`, err); }
+        await new Promise((r) => setTimeout(r, 200));
+        return super.start();
+      }
+      async _preStep() {
+        await super._preStep();
+        const def = this.def, step = this.currentStep;
+        if (!def || !step) return;
+        // The window, open on the tour's tab (reopened if it was closed in between)
+        const root = tourRoot(def);
+        const onTab = !def.tab || !!root?.querySelector(`[data-tab-btn="${def.tab}"].active, [data-kind-btn="${def.tab}"].active, [data-tab="${def.tab}"].active, .item.active[data-tab="${def.tab}"]`);
+        if (!visible(root) || !onTab) { try { await def.open?.(); } catch (err) { console.error(`AxecleftTools | tour ${this.key}`, err); } }
+        const before = def.steps?.find((x) => x.id === step.id)?.before;
+        try { await before?.(tourRoot(def)); } catch (err) { console.warn(`AxecleftTools | tour ${this.key} step ${step.id}`, err); }
+        if (!step.selector) return;
+        // Wait (up to 2 seconds) for the element, opening the closed sections around it
+        let el = null;
+        for (let i = 0; i < 40; i++) {
+          el = this.#find(step.selector, true);
+          if (el) {
+            let opened = false;
+            for (let d = el.closest("details:not([open])"); d; d = d.parentElement?.closest("details:not([open])")) { d.open = true; opened = true; }
+            el = this.#find(step.selector);
+            if (visible(el)) break;
+            if (opened) continue;
+          }
+          el = null;
+          await new Promise((r) => setTimeout(r, 50));
+        }
+        if (!el) return;
+        this.#clearSticky(el);
+        // The window must have stopped moving (a tab still drawing, the window fitting its height), then the element is
+        // scrolled to the middle of its window
+        await this.#settle(el);
+        try { el.scrollIntoView({ block: "center", inline: "nearest" }); } catch (e) { /* old browser */ }
+        await this.#settle(el);
+      }
+      /**
+       * Bars pinned to the top or bottom of the element's scrolling window (a tab strip, a Generate button) would cover it
+       * once it is scrolled into view: its scroll margins leave room for them.
+       */
+      #clearSticky(el) {
+        try {
+          let box = el.parentElement;
+          while (box && box !== document.body) {
+            const st = getComputedStyle(box);
+            if (/(auto|scroll)/.test(st.overflowY) && box.scrollHeight > box.clientHeight) break;
+            box = box.parentElement;
+          }
+          if (!box || box === document.body) return;
+          let top = 0, bottom = 0;
+          for (const bar of box.querySelectorAll("*")) {
+            if (bar.contains(el) || el.contains(bar)) continue;
+            const st = getComputedStyle(bar);
+            if (st.position !== "sticky") continue;
+            const h = bar.getBoundingClientRect().height;
+            if (st.top !== "auto") top = Math.max(top, h);
+            else if (st.bottom !== "auto") bottom = Math.max(bottom, h);
+          }
+          el.style.scrollMarginTop = `${Math.ceil(top) + 12}px`;
+          el.style.scrollMarginBottom = `${Math.ceil(bottom) + 12}px`;
+        } catch (e) { /* layout not readable */ }
+      }
+      /** Where an element is on screen, as text. */
+      #where(el) { const r = el?.getBoundingClientRect?.(); return r ? `${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.width)},${Math.round(r.height)}` : ""; }
+      /** Wait until the element has been in the same place for 150 ms (at most 1.5 seconds). */
+      async #settle(el) {
+        let last = this.#where(el), same = 0;
+        for (let i = 0; i < 30 && same < 3; i++) {
+          await new Promise((r) => setTimeout(r, 50));
+          const now = this.#where(el);
+          same = now === last ? same + 1 : 0;
+          last = now;
+        }
+      }
+      #follow = null;
+      /** While a step is shown, keep its element in view: if the window scrolls or moves, scroll it back and redraw the step. */
+      #startFollow() {
+        this.#stopFollow();
+        const step = this.currentStep, el = this.targetElement;
+        if (!step || !el || this.#centered) return;
+        let where = this.#where(el), redraws = 0, busy = false;
+        this.#follow = setInterval(async () => {
+          if (busy || this.currentStep !== step || this.targetElement !== el) return this.#stopFollow();
+          const now = this.#where(el);
+          if (now === where || !visible(el)) return;
+          if (redraws++ >= 6) return this.#stopFollow();
+          busy = true;
+          try {
+            await this.#settle(el);
+            try { el.scrollIntoView({ block: "center", inline: "nearest" }); } catch (e) { /* old browser */ }
+            await this.#settle(el);
+            if (this.currentStep !== step) return;
+            await TourBase.prototype._postStep.call(this);
+            await TourBase.prototype._renderStep.call(this);
+            where = this.#where(el);
+          } catch (err) { console.warn(`AxecleftTools | tour ${this.key}`, err); this.#stopFollow(); }
+          finally { busy = false; }
+        }, 200);
+      }
+      #stopFollow() { if (this.#follow) clearInterval(this.#follow); this.#follow = null; }
+      exit() { this.#stopFollow(); return super.exit(); }
+      /** The first element the selector finds that is shown (or, with any, the first at all). */
+      #find(selector, any = false) {
+        const all = [...document.querySelectorAll(selector)];
+        return all.find(visible) ?? (any ? all[0] : null) ?? null;
+      }
+      _getTargetElement(selector) { return this.#find(selector); }
+      /** A step whose element isn't shown is shown in the middle of the screen instead of failing. */
+      async _renderStep() {
+        const step = this.currentStep;
+        this.#centered = null;
+        if (step?.selector && !this.targetElement) {
+          this.#centered = step.selector;
+          delete step.selector;
+          try { return await super._renderStep(); } finally { step.selector = this.#centered; }
+        }
+        await super._renderStep();
+        this.#startFollow();
+      }
+      async _postStep() {
+        this.#stopFollow();
+        const step = this.currentStep;
+        if (this.#centered && step) {
+          delete step.selector;
+          try { return await super._postStep(); } finally { step.selector = this.#centered; this.#centered = null; }
+        }
+        return super._postStep();
+      }
+    };
+  }
+  /** The tours of a module, built when the world is ready (the language is loaded then). */
+  const buildTour = (def) => {
+    if (!AxecleftTour || !globalThis.game?.tours) return false;
+    const ns = typeof def.module === "function" ? def.module() : def.module;
+    if (!ns || !game.modules.get(ns)?.active) return false;
+    const key = `${ns}.${def.id}`;
+    if (game.tours.has(key)) return true;
+    const steps = (def.steps ?? []).map((s) => ({
+      id: s.id, title: t(s.title), content: t(s.content), restricted: !!s.gm,
+      ...(stepSelector(def, s) ? { selector: stepSelector(def, s) } : {}),
+      ...(s.direction ? { tooltipDirection: s.direction } : {}),
+    }));
+    const tour = new AxecleftTour({
+      namespace: ns, id: def.id, title: t(def.title), description: def.description ? t(def.description) : "", display: true,
+      restricted: def.gm !== false, canBeResumed: false, steps,
+      suggestedNextTours: (def.next ?? []).map((k) => (typeof k === "function" ? k() : k)).filter(Boolean),
+    });
+    tourDefs.set(key, def);
+    try { game.tours.register(ns, def.id, tour); } catch (err) { console.warn(`AxecleftTools | tour ${key}`, err); return false; }
+    return true;
+  };
+  const pendingTours = existing?.pendingTours ?? [];
+  // Tours registered before this version of the file loaded
+  for (const def of globalThis.__axecleftTourQueue?.splice(0) ?? []) pendingTours.push(def);
+  api.tourDefs = tourDefs;
+  api.pendingTours = pendingTours;
+  api.AxecleftTour = AxecleftTour;
+  /** Describe a tour (see above). It is registered with Foundry when the world is ready. */
+  api.registerTour = (def) => {
+    if (!def?.id || !def?.module || !Array.isArray(def.steps)) return console.error("AxecleftTools | registerTour() needs module, id and steps", def);
+    if (globalThis.game?.ready) { if (!buildTour(def)) pendingTours.push(def); }
+    else pendingTours.push(def);
+  };
+  api.buildTours = () => { for (const def of pendingTours.splice(0)) buildTour(def); };
+  /** The registered tour of a window's tab (for its ⋮ menu). */
+  const ownsWindow = (def, appId, classes = []) => (def.app && def.app === appId) || (def.cls && classes.includes(def.cls));
+  api.tourFor = (appId, tab, classes = []) => {
+    if (!globalThis.game?.tours) return null;
+    for (const [key, def] of tourDefs) {
+      if (!ownsWindow(def, appId, classes)) continue;
+      if (def.tab && tab && def.tab !== tab) continue;
+      if (def.tab && !tab) continue;
+      const tour = game.tours.get(key);
+      if (tour && (!tour.config.restricted || game.user.isGM)) return tour;
+    }
+    return null;
+  };
+  /** Start a tour from the beginning. */
+  api.startTour = async (tour) => {
+    if (!tour) return;
+    try {
+      const active = TourBase?.activeTour;
+      if (active && active !== tour) active.exit();
+      await tour.reset();
+      await tour.start();
+    } catch (err) { console.error("AxecleftTools | tour", err); ui.notifications?.error(err.message); }
+  };
+  if (!globalThis.__axecleftTours) {
+    globalThis.__axecleftTours = true;
+    Hooks.once("ready", () => globalThis.AxecleftTools?.buildTours?.());
+    /** The tour button of a window: { label, start } (null when the window has no tour). */
+    const tourButton = (app) => {
+      const A = globalThis.AxecleftTools;
+      const id = app?.id ?? app?.options?.id;
+      if (!A?.tourFor || !id) return null;
+      const current = () => {
+        const root = document.getElementById(id);
+        return root?.querySelector("[data-tab-btn].active")?.dataset.tabBtn ?? root?.querySelector("[data-kind-btn].active")?.dataset.kindBtn ?? root?.querySelector("nav .item.active[data-tab]")?.dataset.tab ?? (typeof app.tab === "string" ? app.tab : null);
+      };
+      const classes = [...(app.options?.classes ?? [])];
+      const defs = [...A.tourDefs.values()].filter((d) => (d.app && d.app === id) || (d.cls && classes.includes(d.cls)));
+      if (!defs.length) return null;
+      return {
+        label: A.t(defs.some((d) => d.tab) ? /*t*/"Tour of this tab" : /*t*/"Tour of this window"),
+        start: () => {
+          const tour = A.tourFor(id, current(), classes) ?? A.tourFor(id, null, classes);
+          if (!tour) return ui.notifications.info(A.t("This tab has no tour yet."));
+          A.startTour(tour);
+        },
+      };
+    };
+    // "Tour of this tab" in the ⋮ menu of each Axecleft window that has a tour (Foundry v13+)
+    Hooks.on("getHeaderControlsApplicationV2", (app, controls) => {
+      try {
+        if (!Array.isArray(controls) || controls.some((c) => c.action === "axecleftTour")) return;
+        const b = tourButton(app);
+        if (b) controls.push({ icon: "fas fa-person-hiking", label: b.label, action: "axecleftTour", onClick: b.start });
+      } catch (err) { console.warn("AxecleftTools | tour menu", err); }
+    });
+    // Foundry v11: a Tour button in the title bar of each Axecleft window that has a tour
+    if (!foundry.applications?.api?.ApplicationV2) {
+      Hooks.on("getApplicationHeaderButtons", (app, buttons) => {
+        try {
+          if (!Array.isArray(buttons) || buttons.some((x) => x.class === "axecleft-tour")) return;
+          const b = tourButton(app);
+          if (!b) return;
+          buttons.unshift({ label: globalThis.AxecleftTools.t("Tour"), class: "axecleft-tour", icon: "fas fa-person-hiking", onclick: () => b.start() });
+        } catch (err) { console.warn("AxecleftTools | tour button", err); }
+      });
+    }
   }
 
   // Once, whichever version loads first; it always calls the newest API.

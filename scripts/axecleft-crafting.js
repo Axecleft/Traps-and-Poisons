@@ -34,7 +34,7 @@
  * both the nonepic and the epic creation feat (plan.epicFeat, or the epic version of plan.feat), only while the shared Epic
  * items switch is on; time 1 day per 10,000 gp of base price (Axecleft house rule; reported, not enforced).
  */
-const AXECLEFT_CRAFTING_VERSION = 1.95; // 1.95: numbers right-aligned in their boxes; 1.94: skill bonuses for estimates from D35E's source details (the total the sheet shows); 1.93: a check's progress can be counted in another coin (check.progress: cp, sp, gp or pp; trap kits' setting); 1.92: spell sources include a staff (power stone, dorje, psicrown); 1.9: text in the world's language (Axecleft's Tools 8.2 language files); 1.91: Foundry v11 (Tools 9 window, chat)
+const AXECLEFT_CRAFTING_VERSION = 1.97; // 1.97: feat names as the world shows them (translated Feats compendium), the tab name on chat cards in the world's language, construction lines in French, Spanish or Portuguese (NLS, Coût … po + … PX, Prix … po), magic traps' costs (plan.days); 1.96: tours of the crafting tabs (Tour Management, and the window's ⋮ menu); 1.94: skill bonuses for estimates from D35E's source details (the total the sheet shows); 1.93: a check's progress can be counted in another coin (check.progress: cp, sp, gp or pp; trap kits' setting); 1.92: spell sources include a staff (power stone, dorje, psicrown); 1.9: text in the world's language (Axecleft's Tools 8.2 language files); 1.91: Foundry v11 (Tools 9 window, chat)
 const AXECLEFT_CRAFTING_HOST = (() => {
   try { return decodeURIComponent(new URL(import.meta.url).pathname).match(/\/modules\/([^/]+)\//)?.[1] ?? null; } catch (e) { return null; }
 })();
@@ -58,6 +58,28 @@ const AXECLEFT_CRAFTING_HOST = (() => {
   const t = (s, d) => globalThis.AxecleftTools?.t?.(s, d) ?? (d ? String(s).replace(/\{(\w+)\}/g, (m, k) => d[k] ?? m) : String(s));
   const num = (n) => Number(n).toLocaleString(globalThis.AxecleftTools?.i18n?.lang && globalThis.AxecleftTools.i18n.lang !== "en" ? globalThis.AxecleftTools.i18n.lang : "en-US");
   const gp = (n) => t("{n} gp", { n: num(round2(n)) });
+  /**
+   * 1.97: a feat's name as this world shows it (the D35E Feats compendium through Babele: "Création d'armes et d'armures
+   * magiques"), else the English. Loaded once at ready; English worlds keep the English names.
+   */
+  let FEAT_SHOWN = null;
+  async function loadFeatNames() {
+    if (/^en\b/i.test(globalThis.game?.i18n?.lang ?? "en") || FEAT_SHOWN) return;
+    FEAT_SHOWN = new Map();
+    const T = globalThis.AxecleftTools;
+    for (const pack of globalThis.game?.packs ?? []) {
+      if (pack.documentName !== "Item" || !/feats?$/i.test(pack.metadata?.name ?? "")) continue;
+      try {
+        const idx = T?.enIndex ? await T.enIndex(pack, { fields: ["type"] }) : [];
+        for (const e of idx) if (e.display && e.display !== e.name && !FEAT_SHOWN.has(normName(e.name))) FEAT_SHOWN.set(normName(e.name), e.display);
+      } catch (e) { /* a compendium that can't be read */ }
+    }
+  }
+  const featShown = (name) => FEAT_SHOWN?.get(normName(name)) ?? t(name);
+  /** The English name of a feat written in the world's language (the reverse of featShown), else the name as written. */
+  const featEnglish = (name) => { if (FEAT_SHOWN) for (const [en, shown] of FEAT_SHOWN) if (normName(shown) === normName(name)) return en.replace(/\b\w/g, (c) => c.toUpperCase()); return name; };
+  /** "1,250" / "1 250" / "1.250" / "1 250,5" → 1250 (thousands separators of any language; a decimal comma or point). */
+  const amount = (s) => { const x = String(s ?? "").trim().replace(/[\s\u00a0\u202f]/g, "").replace(/[.,](?=\d{3}(?:\D|$))/g, "").replace(",", "."); return Number(x) || 0; };
   const remember = (k, v) => { try { localStorage.setItem(STORE + k, v); } catch (e) { /* private mode */ } };
   const recall = (k, d) => { try { return localStorage.getItem(STORE + k) ?? d; } catch (e) { return d; } };
   /*t*/"good"; /*t*/"evil"; /*t*/"lawful"; /*t*/"chaotic"; // alignment words in "Creator must be {alignment}"
@@ -239,7 +261,7 @@ const AXECLEFT_CRAFTING_HOST = (() => {
     if (!setting("chargeGp")) p.gp = 0;
     if (!setting("chargeXp")) p.xp = 0;
     p.days = p.magic ? Math.max(1, Math.ceil(base / (p.epic ? 10000 : 1000))) : null;
-    if (p.epic) p.notes = [t(p.scroll ? "Epic item (SRD): XP = market price ÷ 25 + 1,000; needs both {feat} and {epicFeat}. Time: 1 day per 10,000 gp of base price (house rule; not enforced)." : "Epic item (SRD): XP = market price ÷ 100 + 10,000; needs both {feat} and {epicFeat}. Time: 1 day per 10,000 gp of base price (house rule; not enforced).", { feat: feat0 ?? t("the creation feat"), epicFeat: p.epicFeat ?? t("its epic version") }), ...(p.notes ?? [])];
+    if (p.epic) p.notes = [t(p.scroll ? "Epic item (SRD): XP = market price ÷ 25 + 1,000; needs both {feat} and {epicFeat}. Time: 1 day per 10,000 gp of base price (house rule; not enforced)." : "Epic item (SRD): XP = market price ÷ 100 + 10,000; needs both {feat} and {epicFeat}. Time: 1 day per 10,000 gp of base price (house rule; not enforced).", { feat: feat0 ? featShown(feat0) : t("the creation feat"), epicFeat: p.epicFeat ? featShown(p.epicFeat) : t("its epic version") }), ...(p.notes ?? [])];
     const req = [];
     if (actor && p.magic) {
       const feats = actorInfo.feats(actor);
@@ -373,7 +395,7 @@ const AXECLEFT_CRAFTING_HOST = (() => {
       if (form && r.source && !r.source.self) {
         extra = ` <select name="craft.src.${r.source.index}" class="acr-src">${opt("", t("Not available"), values[`src.${r.source.index}`])}${opt("ally", t("A helping caster"), values[`src.${r.source.index}`])}${opt("scroll", t("A scroll or power stone"), values[`src.${r.source.index}`])}${opt("wand", t("A wand or dorje"), values[`src.${r.source.index}`])}${opt("staff", t("A staff or psicrown"), values[`src.${r.source.index}`])}</select>`;
       }
-      return `<li>${mark(r.ok)} <strong>${esc(r.label)}</strong> <small>${esc(r.detail ?? "")}</small>${extra}</li>`;
+      return `<li>${mark(r.ok)} <strong>${esc(/^feat/.test(r.key ?? "") ? featShown(r.label) : r.label)}</strong> <small>${esc(r.detail ?? "")}</small>${extra}</li>`;
     }).join("");
     const checks = (p.checks ?? []).map((c) => `<li><i class="fas fa-dice-d20"></i> ${esc(c.label)}: ${esc(c.skillLabel ?? "")} ${esc(t("DC {n}", { n: c.dc }))}${c.mod !== undefined ? ` <small>${esc(t("(modifier {mod})", { mod: `${c.mod >= 0 ? "+" : ""}${c.mod}` }))}</small>` : ""}</li>`).join("");
     const time = timeText(p);
@@ -428,7 +450,7 @@ const AXECLEFT_CRAFTING_HOST = (() => {
     }
     return `<div class="axecleft-crafting-card">
       <h3><i class="fas fa-hammer"></i> ${esc(t("Crafting: {name}", { name: p.name }))}</h3>
-      <div class="acr-sum">${esc(r.actorName ?? "")}${r.kindLabel ? ` · ${esc(r.kindLabel)}` : ""}</div>
+      <div class="acr-sum">${esc(r.actorName ?? "")}${r.kindLabel ? ` · ${esc(t(r.kindLabel))}` : ""}</div>
       ${state}
       ${planHTML(p)}
       ${paid}
@@ -621,7 +643,6 @@ const AXECLEFT_CRAFTING_HOST = (() => {
   const STYLE = `<style>
     #axecleft-crafting { max-height: calc(100vh - 16px); }
     #axecleft-crafting .window-content { overflow-y: auto; }
-    .acr input[type=number] { text-align: right; }
     .acr nav.acr-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--color-border-light-tertiary, #999); margin-bottom: 8px; flex-wrap: wrap; }
     .acr nav.acr-tabs button { flex: 1 1 auto; border-radius: 4px 4px 0 0; margin: 0; padding: 4px 6px; white-space: nowrap; }
     .acr nav.acr-tabs button.active { font-weight: bold; box-shadow: inset 0 -3px 0 var(--color-warm-1, #c9593f); }
@@ -642,7 +663,9 @@ const AXECLEFT_CRAFTING_HOST = (() => {
     .acr-help { margin: 6px 0; font-size: 0.9em; } .acr-help summary { cursor: pointer; } .acr-help blockquote { margin: 4px 0; padding: 3px 8px; border-left: 3px solid var(--color-warm-1, #c9593f); font-family: monospace; font-size: 0.95em; } .acr-help ul { margin: 4px 0 4px 1.2em; padding: 0; } .acr-help li { margin: 2px 0; }
     select.acr-src { font-size: 0.9em; height: auto; width: auto; margin-left: 4px; }
     .axecleft-crafting-card h3 { margin: 0 0 2px; font-size: 1.1em; } .axecleft-crafting-card .acr-state { margin: 4px 0; }
-    .axecleft-crafting-card .acr-buttons { display: flex; gap: 4px; margin-top: 4px; } .axecleft-crafting-card button { margin-top: 3px; }
+    .axecleft-crafting-card .acr-buttons { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; } .axecleft-crafting-card button { margin-top: 3px; }
+    /* 1.97: a narrow chat wraps whole buttons (or the words in one), never the letters of a word ("Approuve-r") */
+    .axecleft-crafting-card .acr-buttons button { flex: 1 1 auto; width: auto; min-width: min-content; white-space: normal; word-break: normal; overflow-wrap: normal; hyphens: none; line-height: 1.2; padding: 3px 6px; }
     .axecleft-crafting-card .acr-gm label { display: flex; gap: 4px; align-items: center; font-size: 0.9em; }
   </style>`;
 
@@ -772,6 +795,35 @@ const AXECLEFT_CRAFTING_HOST = (() => {
     return APP.render(true);
   }
 
+  /* ------------------------------------------ */
+  /*  Tours (version 1.96, Axecleft's Tools 9.7) */
+  /* ------------------------------------------ */
+
+  const CRAFT_APP = "axecleft-crafting";
+  /** Opens the Crafting window on a kind's tab, for a tour. */
+  const tourOpen = (kindId) => async () => {
+    open({ kindId });
+    for (let i = 0; i < 40 && !document.getElementById(CRAFT_APP)?.querySelector(`[data-kind-btn="${kindId}"].active`); i++) await new Promise((r) => setTimeout(r, 50));
+  };
+  /** A tour's first steps: the tab's button and the crafter. */
+  const tourHead = (kindId, title, content) => [
+    { id: "tab", sel: `[data-kind-btn="${kindId}"]`, title, content, direction: "DOWN" },
+    { id: "crafter", field: "acr.actor", title: /*t*/"Crafter", content: /*t*/"The character who makes it: your own characters, or the selected token's. Their feats, skills, caster level and spells are checked against the item's requirements." },
+  ];
+  /** A tour's last steps: the plan, and sending the request. */
+  const tourFooter = () => [
+    { id: "plan", sel: "[data-acr=plan]", title: /*t*/"The plan", content: /*t*/"What it will cost (gp and XP), how long it takes, every requirement with ✔ or ✘, and the checks rolled after approval. It updates as you choose." },
+    { id: "send", sel: ".acr-footer", title: /*t*/"Send for approval", direction: "UP", content: /*t*/"Sends the request to the GM as a chat card. Nothing is spent until the GM approves; then the checks are rolled and the item is made. The GM can also approve and craft at once." },
+  ];
+  /** Describe the tour of a crafting tab: registerTour() with the window, the tab and the first and last steps filled in. */
+  function registerTour({ module, key, id, label, title, description, intro, steps, next }) {
+    const kindId = `${module}.${key}`;
+    globalThis.AxecleftTools?.registerTour?.({
+      module, id: id ?? `craft-${key}`, app: CRAFT_APP, tab: kindId, open: tourOpen(kindId), gm: false, title, description, next,
+      steps: [...tourHead(kindId, label, intro), ...steps, ...tourFooter()],
+    });
+  }
+
   function registerKind(def) {
     if (!def?.module || !def?.key || typeof def.evaluate !== "function" || typeof def.content !== "function") return console.error("AxecleftCrafting | registerKind() needs module, key, content and evaluate", def);
     registry.kinds.set(`${def.module}.${def.key}`, { icon: "fas fa-hammer", order: 100, ...def, id: `${def.module}.${def.key}` });
@@ -826,21 +878,22 @@ const AXECLEFT_CRAFTING_HOST = (() => {
    */
   function parsePrereqs(html, { spell = () => null, isFeat = () => false, itemName = "" } = {}) {
     const t = plainText(html);
-    let m = t.match(/(?:\bCL\b|\bML\b|Caster Level:?|Manifester Level:?)\s*((?:\d+(?:st|nd|rd|th)?\s*(?:\([^)]*\))?\s*,?\s*(?:or\s+)?)+);\s*(?:Prerequisites?:\s*)?([^;]*?)\s*(?:;|$)/i);
+    // 1.97: also the usual French, Spanish and Portuguese words (NLS 5 ; NL 5; NC 5; Conditions/Prérequis : …; ou/o/e between names)
+    let m = t.match(/(?:\bCL\b|\bML\b|\bNLS\b|\bNL\b|\bNC\b|\bNM\b|Caster Level:?|Manifester Level:?|Niveau de lanceur de sorts\s*:?)\s*((?:\d+(?:st|nd|rd|th|e|er|re|º|°|o|a)?\s*(?:\([^)]*\))?\s*,?\s*(?:(?:or|ou|o)\s+)?)+);\s*(?:(?:Prerequisites?|Prérequis|Conditions?|Requisitos?|Pré-requisitos?)\s*:?\s*)?([^;]*?)\s*(?:;|$)/i);
     // Some epic items give only "Prerequisites: …" with no caster level
-    if (!m) { const p = t.match(/Prerequisites?:\s*([^;]*?)\s*(?:;|$)/i); if (p) m = [p[0], "", p[1]]; }
+    if (!m) { const p = t.match(/(?:Prerequisites?|Prérequis|Requisitos?|Pré-requisitos?)\s*:\s*([^;]*?)\s*(?:;|$)/i); if (p) m = [p[0], "", p[1]]; }
     if (!m) return null;
-    const options = [...m[1].matchAll(/(\d+)(?:st|nd|rd|th)?\s*(?:\(\s*([^)]*?)\s*\))?/g)].map((x) => ({ cl: Number(x[1]), label: x[2] ?? "" }));
+    const options = [...m[1].matchAll(/(\d+)(?:st|nd|rd|th|e|er|re|º|°|o|a)?\s*(?:\(\s*([^)]*?)\s*\))?/g)].map((x) => ({ cl: Number(x[1]), label: x[2] ?? "" }));
     const out = { cl: pickCl(options, itemName) ?? null, feats: [], spells: [], align: [], skills: [], minLevel: null, minCl: null, race: null, factor: null, other: [], text: m[2].trim(), cost: null };
-    const cost = t.match(/\bCost(?:\s+to\s+Create)?:?\s+([\d,]+(?:\.\d+)?)\s*gp\s*\+\s*([\d,]+)\s*XP/i);
+    const cost = t.match(/\b(?:Cost(?:\s+to\s+Create)?|Coût(?:\s+de\s+création)?|Costo(?:\s+de\s+creación)?|Custo(?:\s+de\s+criação)?)\s*:?\s+(\d[\d\s.,]*?)\s*(?:gp|po|mo|PO)\s*\+\s*(\d[\d\s.,]*?)\s*(?:XP|PX|PE)\b/i);
     // The statblock's price (1.3): "Price 22,400 gp" or one per version, "Price 2,000 gp ( ring +1 ), 8,000 gp ( ring +2 )"
-    const pm = t.match(/\b(?:Market\s+)?Price:?\s*((?:[\d,]+(?:\s*gp)?\s*(?:\([^)]*\))?\s*,?\s*(?:or\s+)?)+)/i);
+    const pm = t.match(/\b(?:(?:Market\s+)?Price|Prix(?:\s+du\s+marché)?|Precio|Preço)\s*:?\s*((?:\d(?:[\d.,]|\s(?=\d))*(?:\s*(?:gp|po|mo|PO))?\s*(?:\([^)]*\))?\s*,?\s*(?:(?:or|ou|o)\s+)?)+)/i);
     if (pm) {
-      const prices = [...pm[1].matchAll(/([\d,]+)(?:\s*gp)?\s*(?:\(\s*([^)]*?)\s*\))?/g)].map((x) => ({ cl: Number(x[1].replace(/,/g, "")), label: x[2] ?? "" })).filter((x) => x.cl > 0);
+      const prices = [...pm[1].matchAll(/(\d(?:[\d.,]|\s(?=\d))*)(?:\s*(?:gp|po|mo|PO))?\s*(?:\(\s*([^)]*?)\s*\))?/g)].map((x) => ({ cl: amount(x[1]), label: x[2] ?? "" })).filter((x) => x.cl > 0);
       out.price = prices.length === 1 ? prices[0].cl : prices.length ? pickCl(prices, itemName) : null;
       if (prices.length > 1 && !prices.some((x) => x.label)) out.price = null;
     }
-    if (cost) out.cost = { gp: Number(cost[1].replace(/,/g, "")), xp: Number(cost[2].replace(/,/g, "")) };
+    if (cost) out.cost = { gp: amount(cost[1]), xp: amount(cost[2]) };
     // Split on commas outside parentheses
     const parts = [];
     let depth = 0, cur = "";
@@ -854,13 +907,13 @@ const AXECLEFT_CRAFTING_HOST = (() => {
     for (let raw of parts) {
       raw = raw.trim().replace(/\.$/, "");
       if (!raw || /^(weight|price|market price|in effect)\b/i.test(raw)) continue;
-      const or = /^or\s+/i.test(raw);
-      const p = raw.replace(/^(or|and)\s+/i, "").trim();
-      // Feats first (a feat is never a spell name)
-    const featName = FEAT_ALIAS[normName(p)] ?? p.replace(/\s+feat$/i, "");
+      const or = /^(or|ou|o)\s+/i.test(raw);
+      const p = raw.replace(/^(or|and|ou|et|o|y|e)\s+/i, "").trim();
+      // Feats first (a feat is never a spell name); a feat written in the world's language counts as its English name
+    const featName = FEAT_ALIAS[normName(p)] ?? featEnglish(p.replace(/\s+feat$/i, ""));
       if (CREATION_FEATS[normName(featName)] !== undefined || isFeat(featName)) { out.feats.push(featName); continue; }
     // Spells: "x", "x or y", "heightened x" (the spell x)
-      const alts = p.split(/\s+or\s+/i).map((s) => s.trim()).filter(Boolean);
+      const alts = p.split(/\s+(?:or|ou|o)\s+/i).map((s) => s.trim()).filter(Boolean);
       const found = alts.map((a) => spell(a) ?? spell(a.replace(/^(heightened|improved heightened|maximized|empowered|extended|quickened)\s+/i, "")));
       if (found.length && found.every(Boolean)) {
         if (or && lastSpellGroup) lastSpellGroup.push(...found);
@@ -902,7 +955,7 @@ const AXECLEFT_CRAFTING_HOST = (() => {
   }
 
   /** Worlds not in English: the construction line is read in English (the item's English text when the world's can't be read). */
-  const nonEnglishNote = () => (/^en\b/i.test(globalThis.game?.i18n?.lang ?? "en") ? "" : `<p><em>${t("The construction line is read in English, as in the example. For translated SRD items the modules use the English line; your own items need the line in English.")}</em></p>`);
+  const nonEnglishNote = () => (/^en\b/i.test(globalThis.game?.i18n?.lang ?? "en") ? "" : `<p><em>${t("The construction line can be written in English, as in the example, or with the usual words of your language: NLS 5 (caster level), Prérequis :, ou between names, Prix 12 000 po, Coût 6 000 po + 480 PX. Feats and spells can use the names this world shows. For translated SRD items the modules read the English line.")}</em></p>`);
 
   function prereqHelp(what = "items") {
     const thing = what === "abilities" ? /*t*/"a custom special ability (an enhancement item)" : what === "arms" ? /*t*/"a custom specific weapon, armor or shield" : /*t*/"a custom ring, rod, staff or wondrous item";
@@ -929,7 +982,8 @@ const AXECLEFT_CRAFTING_HOST = (() => {
   const api = {
     version: AXECLEFT_CRAFTING_VERSION, registry, hosts, _app: APP,
     registerKind, kinds, evaluate, finishPlan, planHTML, cardHTML, submit, open, setting,
-    parsePrereqs, plainText, linkedDescription, CREATION_FEATS, prereqHelp,
+    registerTour, tourOpen, tourHead, tourFooter,
+    parsePrereqs, plainText, linkedDescription, CREATION_FEATS, prereqHelp, featShown,
     actor: actorInfo, payment, outcome,
     _approve: approveRequest, _roll: rollCheck, _action: onCardAction, _apply: applyResults, _onChat: onChat, _registerSettings: registerSettings,
     _onInit() {
@@ -939,6 +993,7 @@ const AXECLEFT_CRAFTING_HOST = (() => {
         hint: /*t*/"Craft items by the SRD: magic items with item creation feats, mundane items with Craft", gmOnly: false,
         onClick: () => globalThis.AxecleftCrafting.open(),
       });
+      Hooks.once("ready", () => loadFeatNames().catch(() => {}));
       Hooks.callAll("axecleftCrafting.ready", globalThis.AxecleftCrafting);
     },
   };

@@ -1,5 +1,17 @@
 # Axecleft's Crafting (shared engine) — changelog
 
+## Version 1.97
+
+- **Feats in the world's language**: requirement lines and epic notes show a feat by the name this world uses (D35E's Feats compendium through Babele: *Création d'armes et d'armures magiques*), loaded once when the world is ready. English worlds are unchanged.
+- The tab's name under the crafter's name on a request card is translated (it was stored in English).
+- **Construction lines in other languages**: *NLS 5* (also NL, NC, NM), *Prérequis :* / *Requisitos:*, *ou* / *o* between names, *Prix 12 000 po* / *Precio* / *Preço*, *Coût 6 000 po + 480 PX* (also Costo, Custo; mo, PE), thousands written 1,250, 1 250 or 1.250. A feat written by the name this world shows counts as its English name. The help says so.
+- Request card buttons wrap whole (or at a space) in a narrow chat, never in the middle of a word (*Approuve-r*).
+- Magic plans may give `days` through `base` the usual way; the Traps module's **Magic traps** tab uses base = 2 × gp so the SRD's 1 day per 500 gp falls out of the engine's 1 day per 1,000 gp of base price.
+
+## Version 1.96
+
+- **Tours** (Axecleft's Tools 9.7, Foundry 13+): every crafting tab has a tour in Configure Settings → Tour Management and in the Crafting window's ⋮ menu (**Tour of this tab**), for players too. `AxecleftCrafting.registerTour({ module, key, label, title, description, intro, steps })` lets a module describe its own tab's tour; the Crafter, the plan and Send for approval steps are added for it.
+
 ## Version 1.95
 
 - Number boxes in the Crafting window show their value against the right edge.

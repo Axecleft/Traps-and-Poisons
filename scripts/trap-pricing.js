@@ -76,6 +76,18 @@ export function marketPrice(actorData) {
   return m ? amount(m[1]) : null;
 }
 
+/**
+ * 1.14.6.22: the price written on an item as a "Cost: 1,000 gp" line (diseases have no SRD price; the Poison & Disease
+ * Creator writes one), or its own price; also "Coût : 1 000 po", "Costo: 1.000 mo", "Custo: 1.000 PO". 0 when none.
+ */
+export function costOf(itemData) {
+  const own = Number(itemData?.system?.price) || 0;
+  if (own > 0) return own;
+  const m = plain(itemData?.system?.description?.value).match(/\b(?:Cost|Co[uû]t|Costo|Custo)\s*[:\-–]?\s*(\d(?:[\d.,]|\s(?=\d))*)\s*(?:gp|po|mo|PO)\b/i);
+  if (!m) return 0;
+  return Number(String(m[1]).replace(/\s/g, "").replace(/[.,](?=\d{3}(?:\D|$))/g, "").replace(",", ".")) || 0;
+}
+
 /** SRD Craft (trapmaking) base DC by CR (with the Axecleft extension past CR 10). */
 export function baseCraftDc(cr) {
   const c = Math.max(1, Number(cr) || 1);
@@ -89,7 +101,7 @@ export function baseCraftDc(cr) {
  * Everything the kit and the Craft rules need, from the actor and its stat line.
  * poisonPrices: Map(normName → gp) of the poison consumables (SRD poison prices).
  */
-export function trapFacts(actorData, data, { poisonPrices = new Map(), MOD = "traps-and-poisons" } = {}) {
+export function trapFacts(actorData, data, { poisonPrices = new Map(), diseasePrices = new Map(), MOD = "traps-and-poisons" } = {}) {
   const d = actorData?.system?.details ?? {};
   const cr = Math.max(0, Number(d.totalCr ?? d.cr) || 0);
   const text = trapText(actorData, data, MOD);
@@ -163,7 +175,14 @@ export function trapFacts(actorData, data, { poisonPrices = new Map(), MOD = "tr
     extras += cost;
     extraParts.push([`${p}${out.autoReset ? t(" (×20, automatic reset)") : ""}`, cost]);
   }
-  if (out.diseases.length) out.assumptions.push(t("the SRD gives no price for diseases; none added"));
+  // Diseases (1.14.6.22): the SRD gives none a price; one with a Cost line (or a price) is an extra cost like a poison
+  for (const p of out.diseases) {
+    const each = diseasePrices.get(p) ?? [...diseasePrices.entries()].find(([k]) => k.includes(p) || p.includes(k))?.[1] ?? 0;
+    if (!(each > 0)) { out.assumptions.push(t("the SRD gives no price for {disease}; add a \"Cost: 1,000 gp\" line to its description to charge one", { disease: p })); continue; }
+    const cost = each * (out.autoReset ? 20 : 1);
+    extras += cost;
+    extraParts.push([`${p}${out.autoReset ? t(" (×20, automatic reset)") : ""}`, cost]);
+  }
   out.formula = { base, parts, mechanical: mech, extras, extraParts, total: mech + extras };
   const market = marketPrice(actorData) ?? srdTrap(actorData, data)?.price ?? null; // the SRD price by English name when the notes are translated
   if (market) {

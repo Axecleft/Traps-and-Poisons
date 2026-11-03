@@ -150,13 +150,19 @@ export function ruleCustomizerContent(cr, R) {
   return html + `</fieldset></div>`;
 }
 
+/** The Customize window's trap types, triggers and resets, for the language files (the generator's data uses these words). */
+export const CHOICE_WORDS = [/*t*/"mechanical", /*t*/"magic device", /*t*/"location trigger", /*t*/"proximity trigger (alarm)", /*t*/"proximity trigger (detect chaos)",
+  /*t*/"proximity trigger (detect good)", /*t*/"proximity trigger (detect law)", /*t*/"touch trigger", /*t*/"touch trigger (detect chaos)", /*t*/"touch trigger (detect good)",
+  /*t*/"touch trigger (detect law)", /*t*/"visual trigger (arcane eye)", /*t*/"visual trigger (true seeing)", /*t*/"automatic reset", /*t*/"manual reset", /*t*/"no reset", /*t*/"repair reset"];
+
 export function customizerContent(cr, T) {
   const lists = [];
   const datalist = (id, values) => { lists.push(`<datalist id="${id}">${values.map((v) => `<option value="${esc(v)}"></option>`).join("")}</datalist>`); return id; };
   const select = (name, label, map) => {
     const keys = Object.keys(map ?? {});
     if (!keys.length) return "";
-    return `<div class="form-group"><label>${H(label)}</label><select name="${name}"><option value="">${H("Random")}</option>${keys.sort(valueSort).map((k) => `<option value="${esc(k)}">${esc(k)}</option>`).join("")}</select></div>`;
+    // The choice shows in the world's language; its value stays the SRD English the stat line is built from (1.14.6.22)
+    return `<div class="form-group"><label>${H(label)}</label><select name="${name}"><option value="">${H("Random")}</option>${keys.sort(valueSort).map((k) => `<option value="${esc(k)}">${esc(t(k))}</option>`).join("")}</select></div>`;
   };
   const box = (name, values) => {
     const id = datalist(`tp-dl-${name.replace(/\W/g, "-")}`, values.sort(valueSort));
@@ -235,6 +241,7 @@ async function openCustomizer(opts) {
   };
   const custom = await DialogV2.wait({
     window: { title: t("Customize: {trap} (CR {cr})", { trap: picked.n, cr: opts.cr }), icon: "fas fa-sliders" },
+    classes: ["tp-trap-customizer-dialog"],
     position: { width: R ? 480 : 620 },
     content: R ? ruleCustomizerContent(opts.cr, R) : customizerContent(opts.cr, T),
     rejectClose: false,
@@ -633,6 +640,7 @@ export async function openGenerator() {
   const DialogV2 = (globalThis.AxecleftTools?.DialogV2 ?? foundry.applications.api.DialogV2);
   const result = await DialogV2.wait({
     window: { title: t("Random Trap Generator"), icon: "fas fa-dice-d20" },
+    classes: ["tp-trap-generator-dialog"],
     content,
     rejectClose: false,
     render: (event, dialog) => refresh((dialog ?? event?.target)?.element ?? document),
@@ -721,11 +729,49 @@ function activateChatButtons(message, html) {
 /*  Hooks                                       */
 /* -------------------------------------------- */
 
+/* -------------------------------------------- */
+/*  Tours (Axecleft's Tools 9.7)                */
+/* -------------------------------------------- */
+
+/** Wait (up to 3 seconds) for a window with this class. */
+async function waitForWindow(cls) {
+  for (let i = 0; i < 60 && !document.querySelector(`.${cls}`); i++) await new Promise((r) => setTimeout(r, 50));
+}
+const GEN_CLS = "tp-trap-generator-dialog", CUSTOM_CLS = "tp-trap-customizer-dialog";
+/** Tours of the Random Trap Generator and its Customize window: Tour Management, or the window's ⋮ menu. */
+function registerTours() {
+  const R = globalThis.AxecleftTools?.registerTour;
+  if (!R) return;
+  const buttons = "footer.form-footer, .dialog-buttons";
+  R({ module: MOD, id: "random-trap", cls: GEN_CLS, next: [`${MOD}.customize-trap`],
+    open: async () => { if (!document.querySelector(`.${GEN_CLS}`)) openGenerator(); await waitForWindow(GEN_CLS); },
+    title: /*t*/"Random Trap Generator", description: /*t*/"Roll random traps by Challenge Rating and create trap actors.",
+    steps: [
+      { id: "cr", field: "cr", title: /*t*/"Challenge Rating", content: /*t*/"The CR of the trap to roll, 1 to 20. The trap list below follows it." },
+      { id: "trap", field: "trap", title: /*t*/"Trap", content: /*t*/"A kind of trap for this CR (a pit, a scything blade, a poisoned needle…), or Random." },
+      { id: "count", field: "count", title: /*t*/"How many", content: /*t*/"How many traps to roll, each rolled separately." },
+      { id: "srd", field: "includeSrd", title: /*t*/"Include SRD sample traps", content: /*t*/"Ticked, the SRD's sample traps (with their fixed stats) can be rolled too." },
+      { id: "rules", field: "includeRules", title: /*t*/"Include poison & disease traps", content: /*t*/"Ticked, traps that deliver a poison or a disease can be rolled too." },
+      { id: "actors", field: "createActors", title: /*t*/"Create actors", content: /*t*/"Ticked, each trap is created as a trap actor, ready to place on a scene. Unticked, only the stat lines are posted to chat, each with a Create Actor button." },
+      { id: "buttons", sel: buttons, title: /*t*/"Generate or Customize", direction: "UP", content: /*t*/"Generate rolls the traps and posts them to chat. Customize… opens the chosen trap's values (trigger, damage, DCs…) for you to set before it is made." },
+    ] });
+  R({ module: MOD, id: "customize-trap", cls: CUSTOM_CLS,
+    open: async () => { if (!document.querySelector(`.${CUSTOM_CLS}`)) { await loadData(); openCustomizer({ cr: 3, trap: null, count: 1, includeSrd: false, includeRules: false, createActors: true }); } await waitForWindow(CUSTOM_CLS); },
+    title: /*t*/"Random Trap Generator: Customize", description: /*t*/"Choose a trap's type, trigger, DCs and effects yourself.",
+    steps: [
+      { id: "intro", sel: ".tp-custom > p.hint", title: /*t*/"Customize", content: /*t*/"Every value of the trap you chose (here a random CR 3 trap). Leave anything blank to roll it; the boxes suggest the values the generator uses, but you can type any value." },
+      { id: "trap", sel: ".tp-custom fieldset:first-of-type", title: /*t*/"Trap", content: /*t*/"Its type (mechanical or magic), trigger, reset and bypass, and the Search and Disable Device DCs." },
+      { id: "effect", sel: ".tp-custom fieldset:nth-of-type(2)", title: /*t*/"Effect", content: /*t*/"What it does: its attack, damage, save and area. Where a trap has several forms, Choose picks one; each box can be typed or left blank to roll." },
+      { id: "buttons", sel: buttons, title: /*t*/"Generate", direction: "UP", content: /*t*/"Makes the trap with your values (and rolls the blank ones), and posts it to chat. Close this window to leave it." },
+    ] });
+}
+
 if (globalThis.Hooks) {
   Hooks.once("ready", () => {
     const mod = game.modules.get(MOD);
     if (mod) mod.api = { ...(mod.api ?? {}), openGenerator, generate, chatContent, rollTrap: async (cr, o) => (await loadData(), rollTrap(cr, o)), parseTrap, createTrapActor };
   });
+  try { registerTours(); } catch (err) { console.warn(`${MOD} | tours`, err); }
   globalThis.AxecleftTools?.onChatRender ? globalThis.AxecleftTools.onChatRender(activateChatButtons) : Hooks.on("renderChatMessageHTML", activateChatButtons);
   if (globalThis.AxecleftTools) {
     // Shared "Axecleft's Tools" menu in D35E's Game Master Tools (see scripts/axecleft-tools.js)
